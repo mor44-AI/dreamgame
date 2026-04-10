@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dream Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; overflow: hidden; }
+    canvas { display: block; }
+    #hud {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 24px; align-items: center;
+      font-family: monospace; color: #fff; font-size: 13px;
+      background: rgba(0,0,0,0.5); padding: 8px 16px; border-radius: 8px;
+      pointer-events: none;
+    }
+    .bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .bar { width: 120px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; }
+    .fill { height: 100%; width: 0%; border-radius: 5px; transition: width 0.1s; }
+    .fill.blue { background: #4499ff; }
+    .fill.red  { background: #ff4444; }
+    #overlay {
+      position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px; background: rgba(0,0,0,0.7);
+      font-family: monospace; color: #fff;
+    }
+    #overlay.show { display: flex; }
+    #overlay h1 { font-size: 48px; }
+    #overlay button {
+      padding: 10px 28px; font-size: 16px; border: none; border-radius: 6px;
+      background: #4499ff; color: #fff; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div class="bar-wrap">
+      <span>BLUE</span>
+      <div class="bar"><div id="blue-fill" class="fill blue"></div></div>
+      <span id="blue-count">3</span>
+    </div>
+    <div class="bar-wrap">
+      <span>RED</span>
+      <div class="bar"><div id="red-fill" class="fill red"></div></div>
+      <span id="red-count">3</span>
+    </div>
+  </div>
+  <div id="overlay">
+    <h1 id="overlay-title">YOU WIN</h1>
+    <button onclick="restartGame()">Play Again</button>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.162.0/build/three.module.js" } }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    window.THREE = THREE; // expose for restart helper
+
+    // ── Constants ──────────────────────────────────────────────────────────
+    const BOARD_W         = 12;
+    const BOARD_D         = 8;
+    const HALF_D          = BOARD_D / 2;
+    const UNIT_RADIUS     = 0.6;
+    const REPULSION_DIST  = 1.4;
+    const REPULSION_K     = 3.0;
+    const SPRING_K        = 8.0;
+    const DAMPING         = 4.0;
+    const BULLET_SPEED    = 6.0;
+    const SPAWN_INTERVAL  = 0.22;
+    const RED_BASE_SPEED  = 3.5;
+    const BLUE_COLOR      = 0x2255cc;
+    const RED_COLOR       = 0xcc2222;
+    const BULLET_BLUE_CLR = 0x4499ff;
+    const BULLET_RED_CLR  = 0xff4444;
+
+    // ── Renderer ───────────────────────────────────────────────────────────
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // ── Scene ──────────────────────────────────────────────────────────────
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    // ── Isometric Camera ───────────────────────────────────────────────────
+    const aspect = window.innerWidth / window.innerHeight;
+    const d = 9;
+    const camera = new THREE.OrthographicCamera(
+      -d * aspect, d * aspect, d, -d, 0.1, 200
+    );
+    camera.position.set(14, 14, 14);
+    camera.lookAt(0, 0, 0);
+
+    // ── Lights ─────────────────────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(10, 20, 10);
+    scene.add(dirLight);
+
+    // ── Resize handler ─────────────────────────────────────────────────────
+    window.addEventListener('resize', () => {
+      const a = window.innerWidth / window.innerHeight;
+      camera.left = -d * a; camera.right = d * a;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ── Initial render test ────────────────────────────────────────────────
+    renderer.render(scene, camera);
+    console.log('Task 1 OK: scene rendered');
+  </script>
+</body>
+</html>
