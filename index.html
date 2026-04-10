@@ -278,7 +278,11 @@
         flash.material.opacity = Math.max(0, 0.9 - age * 6);
         flash.scale.setScalar(1 + age * 4);
         if (age < 0.18) requestAnimationFrame(fadeFlash);
-        else scene.remove(flash);
+        else {
+          flash.geometry.dispose();
+          flash.material.dispose();
+          scene.remove(flash);
+        }
       };
       requestAnimationFrame(fadeFlash);
     }
