@@ -145,10 +145,12 @@
     }
 
     // Board border (edge outline)
-    scene.add(new THREE.LineSegments(
+    const boardEdges = new THREE.LineSegments(
       new THREE.EdgesGeometry(boardGeo),
       new THREE.LineBasicMaterial({ color: 0x8899bb })
-    ));
+    );
+    boardEdges.position.y = -0.08;
+    scene.add(boardEdges);
 
     // ── Resize handler ─────────────────────────────────────────────────────
     window.addEventListener('resize', () => {
