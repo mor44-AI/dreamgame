@@ -161,9 +161,74 @@
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     });
 
-    // ── Initial render test ────────────────────────────────────────────────
-    renderer.render(scene, camera);
-    console.log('Task 1 OK: scene rendered');
+    // ── Units ──────────────────────────────────────────────────────────────
+    function createUnitMesh(color) {
+      const g = new THREE.Group();
+      const mat = new THREE.MeshLambertMaterial({ color });
+      const add = (w, h, d, x, y, z) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        m.position.set(x, y, z);
+        g.add(m);
+      };
+      add(0.28, 0.28, 0.28,  0,    1.08, 0);   // head
+      add(0.38, 0.42, 0.20,  0,    0.70, 0);   // torso
+      add(0.14, 0.38, 0.14, -0.28, 0.65, 0);   // left arm
+      add(0.14, 0.38, 0.14,  0.28, 0.65, 0);   // right arm
+      add(0.14, 0.42, 0.14, -0.14, 0.22, 0);   // left leg
+      add(0.14, 0.42, 0.14,  0.14, 0.22, 0);   // right leg
+      return g;
+    }
+
+    class Unit {
+      constructor(side) {
+        this.side = side; // 'blue' | 'red'
+        this.mesh = createUnitMesh(side === 'blue' ? BLUE_COLOR : RED_COLOR);
+        this.vx = 0;
+        this.vz = 0;
+        this.bobOffset = Math.random() * Math.PI * 2; // idle animation phase
+        this.spawnScale = 0; // 0→1 pop-in animation
+      }
+    }
+
+    const blueUnits = [];
+    const redUnits  = [];
+
+    function spawnUnit(side) {
+      const u = new Unit(side);
+      const x = (Math.random() - 0.5) * (BOARD_W - 1.5);
+      const z = side === 'blue'
+        ? HALF_D * 0.1 + Math.random() * (HALF_D - 0.4)
+        : -HALF_D * 0.1 - Math.random() * (HALF_D - 0.4);
+      u.mesh.position.set(x, 0, z);
+      u.mesh.scale.setScalar(0.01); // start tiny for pop animation
+      scene.add(u.mesh);
+      if (side === 'blue') blueUnits.push(u); else redUnits.push(u);
+    }
+
+    // Spawn starting units
+    for (let i = 0; i < 3; i++) spawnUnit('blue');
+    for (let i = 0; i < 3; i++) spawnUnit('red');
+
+    // ── Temporary render loop (replaced in Task 4) ────────────────────────
+    let lastTime = performance.now();
+    function tempLoop() {
+      requestAnimationFrame(tempLoop);
+      const now = performance.now();
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime = now;
+
+      const t = now / 1000;
+      // Pop-in + idle bob for all units
+      for (const u of [...blueUnits, ...redUnits]) {
+        if (u.spawnScale < 1) {
+          u.spawnScale = Math.min(1, u.spawnScale + dt * 4);
+          u.mesh.scale.setScalar(u.spawnScale);
+        }
+        u.mesh.position.y = 0.04 * Math.sin(t * 2.5 + u.bobOffset);
+      }
+      renderer.render(scene, camera);
+    }
+    tempLoop();
   </script>
 </body>
 </html>
