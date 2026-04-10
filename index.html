@@ -101,6 +101,55 @@
     dirLight.position.set(10, 20, 10);
     scene.add(dirLight);
 
+    // ── Board ──────────────────────────────────────────────────────────────
+    // Main board surface
+    const boardGeo = new THREE.BoxGeometry(BOARD_W, 0.15, BOARD_D);
+    const boardMat = new THREE.MeshLambertMaterial({ color: 0xe8e8ec });
+    const boardMesh = new THREE.Mesh(boardGeo, boardMat);
+    boardMesh.position.y = -0.08;
+    scene.add(boardMesh);
+
+    // Red zone tint (top half: negative Z)
+    const redZoneGeo = new THREE.PlaneGeometry(BOARD_W, HALF_D);
+    const redZoneMat = new THREE.MeshBasicMaterial({
+      color: 0xff2222, transparent: true, opacity: 0.07, depthWrite: false
+    });
+    const redZone = new THREE.Mesh(redZoneGeo, redZoneMat);
+    redZone.rotation.x = -Math.PI / 2;
+    redZone.position.set(0, 0.01, -HALF_D / 2);
+    scene.add(redZone);
+
+    // Blue zone tint (bottom half: positive Z)
+    const blueZoneGeo = new THREE.PlaneGeometry(BOARD_W, HALF_D);
+    const blueZoneMat = new THREE.MeshBasicMaterial({
+      color: 0x2255ff, transparent: true, opacity: 0.07, depthWrite: false
+    });
+    const blueZone = new THREE.Mesh(blueZoneGeo, blueZoneMat);
+    blueZone.rotation.x = -Math.PI / 2;
+    blueZone.position.set(0, 0.01, HALF_D / 2);
+    scene.add(blueZone);
+
+    // Center dashed line (series of short boxes)
+    const dashMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
+    const dashCount = 10;
+    for (let i = 0; i < dashCount; i++) {
+      const dash = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 0.05, 0.12),
+        dashMat
+      );
+      dash.position.set(
+        -BOARD_W / 2 + (i + 0.5) * (BOARD_W / dashCount),
+        0.02, 0
+      );
+      scene.add(dash);
+    }
+
+    // Board border (edge outline)
+    scene.add(new THREE.LineSegments(
+      new THREE.EdgesGeometry(boardGeo),
+      new THREE.LineBasicMaterial({ color: 0x8899bb })
+    ));
+
     // ── Resize handler ─────────────────────────────────────────────────────
     window.addEventListener('resize', () => {
       const a = window.innerWidth / window.innerHeight;
