@@ -75,6 +75,21 @@
     const BULLET_BLUE_COLOR = 0x4499ff;
     const BULLET_RED_COLOR  = 0xff4444;
 
+    // ── Pure functions (tested at startup) ────────────────────────────────
+    function bulletHitsUnit(bx, bz, ux, uz) {
+      const dx = bx - ux, dz = bz - uz;
+      return Math.sqrt(dx * dx + dz * dz) < UNIT_RADIUS;
+    }
+
+    // Inline tests — check console for PASS/FAIL
+    (function testBulletHitsUnit() {
+      console.assert(bulletHitsUnit(0, 0, 0, 0)      === true,  'FAIL: direct hit');
+      console.assert(bulletHitsUnit(0.5, 0, 0, 0)    === true,  'FAIL: near hit');
+      console.assert(bulletHitsUnit(0.7, 0, 0, 0)    === false, 'FAIL: near miss');
+      console.assert(bulletHitsUnit(10, 10, 0, 0)    === false, 'FAIL: far miss');
+      console.log('bulletHitsUnit: all tests PASS');
+    })();
+
     // ── Renderer ───────────────────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -250,6 +265,24 @@
       if (side === 'blue') blueBullets.push(b); else redBullets.push(b);
     }
 
+    function spawnFlash(position, color) {
+      const flash = new THREE.Mesh(
+        new THREE.SphereGeometry(0.3, 6, 6),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 })
+      );
+      flash.position.copy(position);
+      scene.add(flash);
+      let age = 0;
+      const fadeFlash = () => {
+        age += 0.016;
+        flash.material.opacity = Math.max(0, 0.9 - age * 6);
+        flash.scale.setScalar(1 + age * 4);
+        if (age < 0.18) requestAnimationFrame(fadeFlash);
+        else scene.remove(flash);
+      };
+      requestAnimationFrame(fadeFlash);
+    }
+
     // ── Game Loop ──────────────────────────────────────────────────────────
     let lastTime = performance.now();
 
@@ -287,6 +320,42 @@
       }
       for (let i = redBullets.length - 1; i >= 0; i--) {
         if (!redBullets[i].alive) redBullets.splice(i, 1);
+      }
+
+      // ── Collision: red bullets vs blue units ──
+      for (const b of redBullets) {
+        if (!b.alive) continue;
+        for (const u of blueUnits) {
+          if (bulletHitsUnit(b.mesh.position.x, b.mesh.position.z,
+                             u.mesh.position.x, u.mesh.position.z)) {
+            spawnFlash(b.mesh.position, BULLET_RED_COLOR);
+            b.destroy();
+            break;
+          }
+        }
+        // Red bullet reaches blue wall (positive Z edge) — red gets reward
+        if (b.alive && b.mesh.position.z > HALF_D) {
+          b.destroy();
+          spawnUnit('red');
+        }
+      }
+
+      // ── Collision: blue bullets vs red units ──
+      for (const b of blueBullets) {
+        if (!b.alive) continue;
+        for (const u of redUnits) {
+          if (bulletHitsUnit(b.mesh.position.x, b.mesh.position.z,
+                             u.mesh.position.x, u.mesh.position.z)) {
+            spawnFlash(b.mesh.position, BULLET_BLUE_COLOR);
+            b.destroy();
+            break;
+          }
+        }
+        // Blue bullet reaches red wall (negative Z edge) — blue gets reward
+        if (b.alive && b.mesh.position.z < -HALF_D) {
+          b.destroy();
+          spawnUnit('blue');
+        }
       }
 
       // ── Unit animations ──
