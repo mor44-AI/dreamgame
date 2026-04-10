@@ -300,6 +300,11 @@
         u.vx *= Math.max(0, 1 - DAMPING * dt);
         u.vz *= Math.max(0, 1 - DAMPING * dt);
 
+        // Velocity cap (prevents tunneling at high unit counts)
+        const MAX_V = 12;
+        u.vx = Math.max(-MAX_V, Math.min(MAX_V, u.vx));
+        u.vz = Math.max(-MAX_V, Math.min(MAX_V, u.vz));
+
         // Apply
         u.mesh.position.x += u.vx * dt;
         u.mesh.position.z += u.vz * dt;
