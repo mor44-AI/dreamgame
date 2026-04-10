@@ -209,26 +209,100 @@
     for (let i = 0; i < 3; i++) spawnUnit('blue');
     for (let i = 0; i < 3; i++) spawnUnit('red');
 
-    // ── Temporary render loop (replaced in Task 4) ────────────────────────
-    let lastTime = performance.now();
-    function tempLoop() {
-      requestAnimationFrame(tempLoop);
-      const now = performance.now();
-      const dt = Math.min((now - lastTime) / 1000, 0.05);
-      lastTime = now;
+    // ── Bullets ────────────────────────────────────────────────────────────
+    class Bullet {
+      constructor(side, x, speedScale = 1) {
+        this.side = side;
+        const color = side === 'blue' ? BULLET_BLUE_COLOR : BULLET_RED_COLOR;
+        const geo = new THREE.BoxGeometry(0.18, 0.18, 0.18);
+        const mat = new THREE.MeshBasicMaterial({ color });
+        this.mesh = new THREE.Mesh(geo, mat);
+        const z = side === 'blue' ? HALF_D : -HALF_D;
+        this.mesh.position.set(x, 0.5, z);
+        this.vz = (side === 'blue' ? -BULLET_SPEED : BULLET_SPEED) * speedScale;
+        // Glow
+        const light = new THREE.PointLight(color, 0.8, 1.5);
+        this.mesh.add(light);
+        scene.add(this.mesh);
+        this.alive = true;
+      }
+      destroy() {
+        scene.remove(this.mesh);
+        this.alive = false;
+      }
+    }
 
+    const blueBullets = [];
+    const redBullets  = [];
+    let blueSpawnTimer = 0;
+    let redSpawnTimer  = 0;
+    let gameOver = false;
+    let elapsed  = 0;
+
+    function spawnBullet(side) {
+      const x = (Math.random() - 0.5) * (BOARD_W - 0.5);
+      const speedScale = 1 + Math.min(elapsed * 0.008, 0.6);
+      const b = new Bullet(side, x, speedScale);
+      if (side === 'blue') blueBullets.push(b); else redBullets.push(b);
+    }
+
+    // ── Game Loop ──────────────────────────────────────────────────────────
+    let lastTime = performance.now();
+
+    function gameLoop() {
+      requestAnimationFrame(gameLoop);
+      if (gameOver) { renderer.render(scene, camera); return; }
+
+      const now = performance.now();
+      const dt  = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime  = now;
+      elapsed  += dt;
+
+      // ── Spawn bullets ──
+      blueSpawnTimer += dt;
+      redSpawnTimer  += dt;
+      const interval = Math.max(0.10, SPAWN_INTERVAL - elapsed * 0.0005);
+      if (blueSpawnTimer >= interval) { spawnBullet('blue'); blueSpawnTimer = 0; }
+      if (redSpawnTimer  >= interval) { spawnBullet('red');  redSpawnTimer  = 0; }
+
+      // ── Move bullets ──
+      for (const b of blueBullets) {
+        if (!b.alive) continue;
+        b.mesh.position.z += b.vz * dt;
+      }
+      for (const b of redBullets) {
+        if (!b.alive) continue;
+        b.mesh.position.z += b.vz * dt;
+      }
+
+      // ── Remove dead bullets ──
+      for (let i = blueBullets.length - 1; i >= 0; i--) {
+        if (!blueBullets[i].alive) blueBullets.splice(i, 1);
+      }
+      for (let i = redBullets.length - 1; i >= 0; i--) {
+        if (!redBullets[i].alive) redBullets.splice(i, 1);
+      }
+
+      // ── Unit animations ──
       const t = now / 1000;
-      // Pop-in + idle bob for all units
-      for (const u of [...blueUnits, ...redUnits]) {
+      for (const u of blueUnits) {
         if (u.spawnScale < 1) {
           u.spawnScale = Math.min(1, u.spawnScale + dt * 4);
           u.mesh.scale.setScalar(u.spawnScale);
         }
         u.mesh.position.y = 0.04 * Math.sin(t * 2.5 + u.bobOffset);
       }
+      for (const u of redUnits) {
+        if (u.spawnScale < 1) {
+          u.spawnScale = Math.min(1, u.spawnScale + dt * 4);
+          u.mesh.scale.setScalar(u.spawnScale);
+        }
+        u.mesh.position.y = 0.04 * Math.sin(t * 2.5 + u.bobOffset);
+      }
+
       renderer.render(scene, camera);
     }
-    tempLoop();
+    gameLoop();
   </script>
 </body>
 </html>
