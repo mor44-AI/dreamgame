@@ -165,8 +165,8 @@
     function createUnitMesh(color) {
       const g = new THREE.Group();
       const mat = new THREE.MeshLambertMaterial({ color });
-      const add = (w, h, d, x, y, z) => {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      const add = (w, h, depth, x, y, z) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, depth), mat);
         m.position.set(x, y, z);
         g.add(m);
       };
