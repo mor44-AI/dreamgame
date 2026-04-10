@@ -56,6 +56,7 @@
   <script type="module">
     import * as THREE from 'three';
     window.THREE = THREE; // expose for restart helper
+    window.restartGame = () => {}; // wired in Task 10
 
     // ── Constants ──────────────────────────────────────────────────────────
     const BOARD_W         = 12;
@@ -71,12 +72,13 @@
     const RED_BASE_SPEED  = 3.5;
     const BLUE_COLOR      = 0x2255cc;
     const RED_COLOR       = 0xcc2222;
-    const BULLET_BLUE_CLR = 0x4499ff;
-    const BULLET_RED_CLR  = 0xff4444;
+    const BULLET_BLUE_COLOR = 0x4499ff;
+    const BULLET_RED_COLOR  = 0xff4444;
 
     // ── Renderer ───────────────────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
@@ -105,6 +107,7 @@
       camera.left = -d * a; camera.right = d * a;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     });
 
     // ── Initial render test ────────────────────────────────────────────────
