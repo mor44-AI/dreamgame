@@ -210,13 +210,16 @@
     for (let i = 0; i < 3; i++) spawnUnit('red');
 
     // ── Bullets ────────────────────────────────────────────────────────────
+    const BULLET_GEO      = new THREE.BoxGeometry(0.18, 0.18, 0.18);
+    const BULLET_MAT_BLUE = new THREE.MeshBasicMaterial({ color: BULLET_BLUE_COLOR });
+    const BULLET_MAT_RED  = new THREE.MeshBasicMaterial({ color: BULLET_RED_COLOR });
+
     class Bullet {
       constructor(side, x, speedScale = 1) {
         this.side = side;
         const color = side === 'blue' ? BULLET_BLUE_COLOR : BULLET_RED_COLOR;
-        const geo = new THREE.BoxGeometry(0.18, 0.18, 0.18);
-        const mat = new THREE.MeshBasicMaterial({ color });
-        this.mesh = new THREE.Mesh(geo, mat);
+        const mat   = side === 'blue' ? BULLET_MAT_BLUE : BULLET_MAT_RED;
+        this.mesh = new THREE.Mesh(BULLET_GEO, mat);
         const z = side === 'blue' ? HALF_D : -HALF_D;
         this.mesh.position.set(x, 0.5, z);
         this.vz = (side === 'blue' ? -BULLET_SPEED : BULLET_SPEED) * speedScale;
@@ -228,6 +231,7 @@
       }
       destroy() {
         scene.remove(this.mesh);
+        // geometry and material are shared — do not dispose them
         this.alive = false;
       }
     }
@@ -269,10 +273,12 @@
       for (const b of blueBullets) {
         if (!b.alive) continue;
         b.mesh.position.z += b.vz * dt;
+        if (b.mesh.position.z < -HALF_D - 1) b.destroy();
       }
       for (const b of redBullets) {
         if (!b.alive) continue;
         b.mesh.position.z += b.vz * dt;
+        if (b.mesh.position.z > HALF_D + 1) b.destroy();
       }
 
       // ── Remove dead bullets ──
