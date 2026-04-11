@@ -103,7 +103,7 @@
         else { covered += cur[1] - cur[0]; cur = [l, r]; }
       }
       if (cur) covered += cur[1] - cur[0];
-      return Math.min(covered / BOARD_W, 1);
+      return Math.min(covered / (BOARD_W - 1.0), 1);
     }
 
     // Inline tests
@@ -112,7 +112,7 @@
       const empty = calcCoverage([]);
       console.assert(empty === 0, 'FAIL: empty coverage should be 0');
       const one = calcCoverage([u(0)]);
-      console.assert(Math.abs(one - (2 * UNIT_RADIUS / BOARD_W)) < 0.001, 'FAIL: single unit coverage');
+      console.assert(Math.abs(one - (2 * UNIT_RADIUS / (BOARD_W - 1.0))) < 0.001, 'FAIL: single unit coverage');
       const overlap = calcCoverage([u(0), u(0.2)]);
       console.assert(overlap <= one * 2, 'FAIL: overlapping should not exceed double');
       console.log('calcCoverage: all tests PASS');
@@ -405,8 +405,11 @@
       flash.position.copy(position);
       scene.add(flash);
       let age = 0;
-      const fadeFlash = () => {
-        age += 0.016;
+      let prevT = performance.now();
+      const fadeFlash = (now) => {
+        const fadeDt = Math.min((now - prevT) / 1000, 0.05);
+        prevT = now;
+        age += fadeDt;
         flash.material.opacity = Math.max(0, 0.9 - age * 6);
         flash.scale.setScalar(1 + age * 4);
         if (age < 0.18) requestAnimationFrame(fadeFlash);
@@ -434,7 +437,10 @@
 
     window.restartGame = function() {
       // Clear all objects from scene and arrays
-      for (const u of [...blueUnits, ...redUnits]) scene.remove(u.mesh);
+      for (const u of [...blueUnits, ...redUnits]) {
+        u.mesh.traverse(child => { if (child.isMesh) child.geometry.dispose(); });
+        scene.remove(u.mesh);
+      }
       for (const b of [...blueBullets, ...redBullets]) b.destroy();
       blueUnits.length = 0; redUnits.length = 0;
       blueBullets.length = 0; redBullets.length = 0;
