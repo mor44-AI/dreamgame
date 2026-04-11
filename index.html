@@ -331,7 +331,7 @@
         u.vz *= Math.max(0, 1 - DAMPING * dt);
 
         // Velocity cap (prevents tunneling at high unit counts)
-        const MAX_V = 12;
+        const MAX_V = 60;
         u.vx = Math.max(-MAX_V, Math.min(MAX_V, u.vx));
         u.vz = Math.max(-MAX_V, Math.min(MAX_V, u.vz));
 
@@ -342,17 +342,21 @@
         // Bounce off blue half walls
         if (u.mesh.position.x < -BOARD_W / 2 + 0.5) {
           u.mesh.position.x = -BOARD_W / 2 + 0.5;
-          u.vx = Math.abs(u.vx) * 0.35 + (Math.random() - 0.5) * 4;
+          u.vx = 45 + Math.random() * 20;
+          u.vz += (Math.random() - 0.5) * 10;
         } else if (u.mesh.position.x > BOARD_W / 2 - 0.5) {
           u.mesh.position.x = BOARD_W / 2 - 0.5;
-          u.vx = -Math.abs(u.vx) * 0.35 + (Math.random() - 0.5) * 4;
+          u.vx = -(45 + Math.random() * 20);
+          u.vz += (Math.random() - 0.5) * 10;
         }
         if (u.mesh.position.z < 0.3) {
           u.mesh.position.z = 0.3;
-          u.vz = Math.abs(u.vz) * 0.35 + Math.random() * 3;
+          u.vz = 30 + Math.random() * 15;
+          u.vx += (Math.random() - 0.5) * 10;
         } else if (u.mesh.position.z > HALF_D - 0.3) {
           u.mesh.position.z = HALF_D - 0.3;
-          u.vz = -Math.abs(u.vz) * 0.35 - Math.random() * 3;
+          u.vz = -(30 + Math.random() * 15);
+          u.vx += (Math.random() - 0.5) * 10;
         }
       }
     }
@@ -402,7 +406,7 @@
         // Damping + velocity cap
         u.vx *= Math.max(0, 1 - DAMPING * dt);
         u.vz *= Math.max(0, 1 - DAMPING * dt);
-        const MAX_V = 12;
+        const MAX_V = 60;
         u.vx = Math.max(-MAX_V, Math.min(MAX_V, u.vx));
         u.vz = Math.max(-MAX_V, Math.min(MAX_V, u.vz));
 
@@ -413,17 +417,21 @@
         // Bounce off red half walls
         if (u.mesh.position.x < -BOARD_W / 2 + 0.5) {
           u.mesh.position.x = -BOARD_W / 2 + 0.5;
-          u.vx = Math.abs(u.vx) * 0.35 + (Math.random() - 0.5) * 4;
+          u.vx = 45 + Math.random() * 20;
+          u.vz += (Math.random() - 0.5) * 10;
         } else if (u.mesh.position.x > BOARD_W / 2 - 0.5) {
           u.mesh.position.x = BOARD_W / 2 - 0.5;
-          u.vx = -Math.abs(u.vx) * 0.35 + (Math.random() - 0.5) * 4;
+          u.vx = -(45 + Math.random() * 20);
+          u.vz += (Math.random() - 0.5) * 10;
         }
         if (u.mesh.position.z < -HALF_D + 0.3) {
           u.mesh.position.z = -HALF_D + 0.3;
-          u.vz = Math.abs(u.vz) * 0.35 + Math.random() * 3;
+          u.vz = 30 + Math.random() * 15;
+          u.vx += (Math.random() - 0.5) * 10;
         } else if (u.mesh.position.z > -0.3) {
           u.mesh.position.z = -0.3;
-          u.vz = -Math.abs(u.vz) * 0.35 - Math.random() * 3;
+          u.vz = -(30 + Math.random() * 15);
+          u.vx += (Math.random() - 0.5) * 10;
         }
       }
     }
@@ -467,6 +475,7 @@
         const dz = u.mesh.position.z - impactZ;
         const dist = Math.sqrt(dx * dx + dz * dz) || 0.001;
         if (dist < SCATTER_RADIUS) {
+          // Closer units get thrown harder — enough to cross the board
           const strength = force * (1 - dist / SCATTER_RADIUS);
           u.vx += (dx / dist) * strength;
           u.vz += (dz / dist) * strength;
@@ -561,7 +570,7 @@
           if (bulletHitsUnit(b.mesh.position.x, b.mesh.position.z,
                              u.mesh.position.x, u.mesh.position.z)) {
             spawnFlash(b.mesh.position, BULLET_RED_COLOR);
-            scatterUnits(blueUnits, b.mesh.position.x, b.mesh.position.z, 9);
+            scatterUnits(blueUnits, b.mesh.position.x, b.mesh.position.z, 80);
             b.destroy();
             break;
           }
@@ -580,7 +589,7 @@
           if (bulletHitsUnit(b.mesh.position.x, b.mesh.position.z,
                              u.mesh.position.x, u.mesh.position.z)) {
             spawnFlash(b.mesh.position, BULLET_BLUE_COLOR);
-            scatterUnits(redUnits, b.mesh.position.x, b.mesh.position.z, 9);
+            scatterUnits(redUnits, b.mesh.position.x, b.mesh.position.z, 80);
             b.destroy();
             break;
           }
