@@ -444,6 +444,15 @@
       for (let i = 0; i < 3; i++) { spawnUnit('blue'); spawnUnit('red'); }
     };
 
+    function updateHUD() {
+      const blueCov = calcCoverage(blueUnits);
+      const redCov  = calcCoverage(redUnits);
+      document.getElementById('blue-fill').style.width  = (blueCov * 100).toFixed(1) + '%';
+      document.getElementById('red-fill').style.width   = (redCov  * 100).toFixed(1) + '%';
+      document.getElementById('blue-count').textContent = blueUnits.length;
+      document.getElementById('red-count').textContent  = redUnits.length;
+    }
+
     // ── Game Loop ──────────────────────────────────────────────────────────
     let lastTime = performance.now();
 
@@ -525,6 +534,9 @@
 
       // ── Win check ──
       checkWin();
+
+      // ── Update HUD ──
+      updateHUD();
 
       // ── Unit animations ──
       const t = now / 1000;
