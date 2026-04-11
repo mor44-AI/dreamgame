@@ -315,6 +315,53 @@
       }
     }
 
+    function updateRedUnits(dt) {
+      const difficulty = Math.min(elapsed / 60, 1); // 0→1 over 60 seconds
+      const speed = RED_BASE_SPEED * (1 + difficulty * 0.6);
+
+      for (const u of redUnits) {
+        // Find nearest blue bullet's X position
+        let targetX = u.mesh.position.x;
+        let nearestDist = Infinity;
+        for (const b of blueBullets) {
+          const dx = Math.abs(b.mesh.position.x - u.mesh.position.x);
+          if (dx < nearestDist) { nearestDist = dx; targetX = b.mesh.position.x; }
+        }
+
+        // Drift toward target X
+        const dx = targetX - u.mesh.position.x;
+        u.vx += Math.sign(dx) * speed * dt;
+
+        // Mutual repulsion
+        for (const other of redUnits) {
+          if (other === u) continue;
+          const ex = u.mesh.position.x - other.mesh.position.x;
+          const ez = u.mesh.position.z - other.mesh.position.z;
+          const dist = Math.sqrt(ex * ex + ez * ez) || 0.001;
+          if (dist < REPULSION_DIST) {
+            const f = REPULSION_K / (dist * dist) * dt;
+            u.vx += (ex / dist) * f;
+            u.vz += (ez / dist) * f;
+          }
+        }
+
+        // Damping + velocity cap
+        u.vx *= Math.max(0, 1 - DAMPING * dt);
+        u.vz *= Math.max(0, 1 - DAMPING * dt);
+        const MAX_V = 12;
+        u.vx = Math.max(-MAX_V, Math.min(MAX_V, u.vx));
+        u.vz = Math.max(-MAX_V, Math.min(MAX_V, u.vz));
+
+        // Apply
+        u.mesh.position.x += u.vx * dt;
+        u.mesh.position.z += u.vz * dt;
+
+        // Clamp to red half (negative Z)
+        u.mesh.position.x = Math.max(-BOARD_W / 2 + 0.5, Math.min(BOARD_W / 2 - 0.5, u.mesh.position.x));
+        u.mesh.position.z = Math.max(-HALF_D + 0.3, Math.min(-0.3, u.mesh.position.z));
+      }
+    }
+
     function spawnBullet(side) {
       const x = (Math.random() - 0.5) * (BOARD_W - 0.5);
       const speedScale = 1 + Math.min(elapsed * 0.008, 0.6);
@@ -385,6 +432,7 @@
 
       // ── Controls ──
       updateBlueUnits(dt);
+      updateRedUnits(dt);
 
       // ── Collision: red bullets vs blue units ──
       for (const b of redBullets) {
