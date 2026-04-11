@@ -58,8 +58,8 @@
     window.THREE = THREE; // expose for restart helper
 
     // ── Constants ──────────────────────────────────────────────────────────
-    const BOARD_W         = 18;
-    const BOARD_D         = 12;
+    const BOARD_W         = 20;
+    const BOARD_D         = 20;
     const HALF_D          = BOARD_D / 2;
     const UNIT_RADIUS     = 0.6;
     const REPULSION_DIST  = 1.4;
@@ -131,11 +131,11 @@
 
     // ── Isometric Camera ───────────────────────────────────────────────────
     const aspect = window.innerWidth / window.innerHeight;
-    const d = 13;
+    const d = 16;
     const camera = new THREE.OrthographicCamera(
       -d * aspect, d * aspect, d, -d, 0.1, 200
     );
-    camera.position.set(20, 20, 20);
+    camera.position.set(26, 26, 26);
     camera.lookAt(0, 0, 0);
 
     // ── Lights ─────────────────────────────────────────────────────────────
@@ -174,7 +174,7 @@
 
     // Center dashed line (series of short boxes)
     const dashMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
-    const dashCount = 14;
+    const dashCount = 18;
     for (let i = 0; i < dashCount; i++) {
       const dash = new THREE.Mesh(
         new THREE.BoxGeometry(0.6, 0.05, 0.12),
