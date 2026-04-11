@@ -64,8 +64,8 @@
     const UNIT_RADIUS     = 0.6;
     const REPULSION_DIST  = 1.4;
     const REPULSION_K     = 3.0;
-    const SPRING_K        = 8.0;
-    const DAMPING         = 4.0;
+    const SPRING_K        = 14.0;
+    const DAMPING         = 3.0;
     const BULLET_SPEED    = 6.0;
     const SPAWN_INTERVAL  = 0.22;
     const RED_BASE_SPEED  = 3.5;
@@ -290,6 +290,8 @@
     const raycaster   = new THREE.Raycaster();
     const boardPlane  = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const cursorWorld = new THREE.Vector3(0, 0, HALF_D / 2); // default: center blue half
+    let redCursorX = 0;
+    let redCursorZ = -HALF_D / 2;
 
     window.addEventListener('mousemove', e => {
       const ndc = new THREE.Vector2(
@@ -344,21 +346,33 @@
     }
 
     function updateRedUnits(dt) {
-      const difficulty = Math.min(elapsed / 60, 1); // 0→1 over 60 seconds
-      const speed = RED_BASE_SPEED * (1 + difficulty * 0.6);
-
-      for (const u of redUnits) {
-        // Find nearest blue bullet's X position
-        let targetX = u.mesh.position.x;
-        let nearestDist = Infinity;
+      // Move the AI's virtual cursor toward the weighted average X of incoming blue bullets
+      // (weighted by how close each bullet is to the red wall — prioritise imminent threats)
+      if (blueBullets.length > 0) {
+        let weightedX = 0, totalWeight = 0;
         for (const b of blueBullets) {
-          const dx = Math.abs(b.mesh.position.x - u.mesh.position.x);
-          if (dx < nearestDist) { nearestDist = dx; targetX = b.mesh.position.x; }
+          if (!b.alive) continue;
+          // z ranges from +HALF_D (blue wall) to -HALF_D (red wall)
+          // proximity = 1 when bullet is at red wall, 0 when at blue wall
+          const proximity = (-b.mesh.position.z + HALF_D) / (2 * HALF_D);
+          const weight = proximity * proximity + 0.1; // quadratic + small base weight
+          weightedX += b.mesh.position.x * weight;
+          totalWeight += weight;
         }
+        const targetX = weightedX / totalWeight;
 
-        // Drift toward target X
-        const dx = targetX - u.mesh.position.x;
-        u.vx += Math.sign(dx) * speed * dt;
+        // Cursor moves at a capped speed (slower early, faster late — but always beatable)
+        const difficulty = Math.min(elapsed / 90, 1);
+        const cursorSpeed = (3.5 + difficulty * 2.5) * dt;
+        const dx = targetX - redCursorX;
+        redCursorX += Math.sign(dx) * Math.min(Math.abs(dx), cursorSpeed);
+        redCursorX = Math.max(-BOARD_W / 2 + 0.5, Math.min(BOARD_W / 2 - 0.5, redCursorX));
+      }
+
+      // Units swarm toward virtual cursor — identical physics to blue units
+      for (const u of redUnits) {
+        u.vx += (redCursorX - u.mesh.position.x) * SPRING_K * dt;
+        u.vz += (redCursorZ - u.mesh.position.z) * SPRING_K * dt;
 
         // Mutual repulsion
         for (const other of redUnits) {
