@@ -56,7 +56,6 @@
   <script type="module">
     import * as THREE from 'three';
     window.THREE = THREE; // expose for restart helper
-    window.restartGame = () => {}; // wired in Task 10
 
     // ── Constants ──────────────────────────────────────────────────────────
     const BOARD_W         = 12;
@@ -88,6 +87,35 @@
       console.assert(bulletHitsUnit(0.7, 0, 0, 0)    === false, 'FAIL: near miss');
       console.assert(bulletHitsUnit(10, 10, 0, 0)    === false, 'FAIL: far miss');
       console.log('bulletHitsUnit: all tests PASS');
+    })();
+
+    function calcCoverage(units) {
+      if (units.length === 0) return 0;
+      const intervals = units.map(u => [
+        u.mesh.position.x - UNIT_RADIUS,
+        u.mesh.position.x + UNIT_RADIUS
+      ]);
+      intervals.sort((a, b) => a[0] - b[0]);
+      let covered = 0, cur = null;
+      for (const [l, r] of intervals) {
+        if (!cur) { cur = [l, r]; continue; }
+        if (l <= cur[1]) cur[1] = Math.max(cur[1], r);
+        else { covered += cur[1] - cur[0]; cur = [l, r]; }
+      }
+      if (cur) covered += cur[1] - cur[0];
+      return Math.min(covered / BOARD_W, 1);
+    }
+
+    // Inline tests
+    (function testCalcCoverage() {
+      const u = x => ({ mesh: { position: { x, z: 1 } } });
+      const empty = calcCoverage([]);
+      console.assert(empty === 0, 'FAIL: empty coverage should be 0');
+      const one = calcCoverage([u(0)]);
+      console.assert(Math.abs(one - (2 * UNIT_RADIUS / BOARD_W)) < 0.001, 'FAIL: single unit coverage');
+      const overlap = calcCoverage([u(0), u(0.2)]);
+      console.assert(overlap <= one * 2, 'FAIL: overlapping should not exceed double');
+      console.log('calcCoverage: all tests PASS');
     })();
 
     // ── Renderer ───────────────────────────────────────────────────────────
@@ -391,6 +419,31 @@
       requestAnimationFrame(fadeFlash);
     }
 
+    function checkWin() {
+      const blueCov = calcCoverage(blueUnits);
+      const redCov  = calcCoverage(redUnits);
+      if (blueCov >= 1.0) triggerGameOver('YOU WIN 🎉');
+      if (redCov  >= 1.0) triggerGameOver('YOU LOSE 💀');
+    }
+
+    function triggerGameOver(message) {
+      gameOver = true;
+      document.getElementById('overlay-title').textContent = message;
+      document.getElementById('overlay').classList.add('show');
+    }
+
+    window.restartGame = function() {
+      // Clear all objects from scene and arrays
+      for (const u of [...blueUnits, ...redUnits]) scene.remove(u.mesh);
+      for (const b of [...blueBullets, ...redBullets]) b.destroy();
+      blueUnits.length = 0; redUnits.length = 0;
+      blueBullets.length = 0; redBullets.length = 0;
+      blueSpawnTimer = 0; redSpawnTimer = 0;
+      elapsed = 0; gameOver = false;
+      document.getElementById('overlay').classList.remove('show');
+      for (let i = 0; i < 3; i++) { spawnUnit('blue'); spawnUnit('red'); }
+    };
+
     // ── Game Loop ──────────────────────────────────────────────────────────
     let lastTime = performance.now();
 
@@ -469,6 +522,9 @@
           spawnUnit('blue');
         }
       }
+
+      // ── Win check ──
+      checkWin();
 
       // ── Unit animations ──
       const t = now / 1000;
