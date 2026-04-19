@@ -65,6 +65,22 @@
       cursor:pointer; font-family:monospace; padding:6px 16px; border-radius:4px;
     }
 
+    /* ── Phase 2 / Miami ───────────────────────────────────────────── */
+    #p2-canvas-wrap { position: fixed; inset: 0; z-index: 1; display: none; }
+    #p2-canvas-wrap.show { display: block; }
+    #p2-hud {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+      display: none; gap: 24px; align-items: center;
+      font-family: monospace; color: #ff2d78; font-size: 13px;
+      background: rgba(13,0,21,0.8); padding: 8px 16px; border-radius: 0;
+      border: 1px solid #ff2d78; pointer-events: none; letter-spacing: 2px;
+    }
+    #p2-hud.show { display: flex; }
+    .p2-bar { width: 120px; height: 8px; background: #200030; }
+    .p2-fill { height: 100%; width: 0%; }
+    .p2-fill.blue { background: #00fff0; }
+    .p2-fill.pink { background: #ff2d78; }
+
     /* ── Level Select ───────────────────────────────────────────────── */
     #level-select {
       position: fixed; inset: 0; z-index: 99; display: none;
@@ -183,6 +199,24 @@
         <div class="card-sub" id="card-phase2-sub">Beat Hard first</div>
       </div>
     </div>
+  </div>
+
+  <!-- Phase 2 canvas (hidden until activated) -->
+  <div id="p2-canvas-wrap"></div>
+
+  <!-- Phase 2 HUD -->
+  <div id="p2-hud">
+    <div class="bar-wrap">
+      <span>YOU</span>
+      <div class="p2-bar"><div id="p2-blue-fill" class="p2-fill blue"></div></div>
+      <span id="p2-blue-score">0</span><span>/150</span>
+    </div>
+    <div class="bar-wrap">
+      <span>THEM</span>
+      <div class="p2-bar"><div id="p2-red-fill" class="p2-fill pink"></div></div>
+      <span id="p2-red-score">0</span><span>/150</span>
+    </div>
+    <span style="font-size:10px;color:#ff2d78;letter-spacing:3px;">MIAMI</span>
   </div>
 
   <!-- HUD -->
@@ -527,7 +561,319 @@
       const badge = document.getElementById('hud-level');
       if (badge) badge.textContent = lvl.toUpperCase();
     };
-    let startPhase2 = () => {};        // TODO: replaced in Task 4
+    // ── Phase 2 — Hotline Miami ────────────────────────────────────────────────
+    function startPhase2() {
+      // Show Phase 2 canvas, hide Phase 1 canvas
+      renderer.domElement.style.display = 'none';
+      document.getElementById('hud').style.display = 'none';
+      document.getElementById('p2-hud').classList.add('show');
+
+      const wrap = document.getElementById('p2-canvas-wrap');
+      wrap.classList.add('show');
+
+      // ── P2 Renderer ──
+      const p2renderer = new THREE.WebGLRenderer({ antialias: true });
+      p2renderer.setSize(window.innerWidth, window.innerHeight);
+      p2renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      wrap.appendChild(p2renderer.domElement);
+
+      // ── P2 Scene ──
+      const p2scene = new THREE.Scene();
+      p2scene.background = new THREE.Color(0x0d0015);
+
+      // Top-down orthographic camera
+      const p2aspect = window.innerWidth / window.innerHeight;
+      const p2d = 16;
+      const p2camera = new THREE.OrthographicCamera(
+        -p2d * p2aspect, p2d * p2aspect, p2d, -p2d, 0.1, 200
+      );
+      p2camera.position.set(0, 30, 0);
+      p2camera.lookAt(0, 0, 0);
+
+      // ── P2 Board ──
+      const P2_W = 24, P2_D = 24, P2_HALF = 12;
+
+      // Dark floor
+      const floorGeo = new THREE.PlaneGeometry(P2_W, P2_D);
+      const floorMat = new THREE.MeshBasicMaterial({ color: 0x0d0015 });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      p2scene.add(floor);
+
+      // Neon grid lines
+      const gridMat = new THREE.LineBasicMaterial({ color: 0x330044 });
+      for (let i = -P2_W / 2; i <= P2_W / 2; i += 2) {
+        const g = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(i, 0.01, -P2_D / 2),
+          new THREE.Vector3(i, 0.01,  P2_D / 2),
+        ]);
+        p2scene.add(new THREE.Line(g, gridMat));
+      }
+      for (let z = -P2_D / 2; z <= P2_D / 2; z += 2) {
+        const g = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-P2_W / 2, 0.01, z),
+          new THREE.Vector3( P2_W / 2, 0.01, z),
+        ]);
+        p2scene.add(new THREE.Line(g, gridMat));
+      }
+
+      // Centre divider (hot pink)
+      const divMat = new THREE.LineBasicMaterial({ color: 0xff2d78 });
+      const divG = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-P2_W / 2, 0.02, 0),
+        new THREE.Vector3( P2_W / 2, 0.02, 0),
+      ]);
+      p2scene.add(new THREE.Line(divG, divMat));
+
+      // Zone tints
+      const makeZone = (color, z) => {
+        const m = new THREE.Mesh(
+          new THREE.PlaneGeometry(P2_W, P2_HALF),
+          new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.04, depthWrite: false })
+        );
+        m.rotation.x = -Math.PI / 2;
+        m.position.set(0, 0.01, z);
+        p2scene.add(m);
+      };
+      makeZone(0x00fff0, P2_HALF / 2);
+      makeZone(0xff2d78, -P2_HALF / 2);
+
+      p2scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+
+      // ── P2 Unit factory ──
+      function createP2Unit(color) {
+        const g = new THREE.Group();
+        const mat = new THREE.MeshBasicMaterial({ color });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.7), mat);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.3), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+        head.position.set(0, 0.05, -0.22);
+        g.add(body);
+        g.add(head);
+        return g;
+      }
+
+      const P2_BLUE = 0x00fff0;
+      const P2_RED  = 0xff2d78;
+
+      const p2Blue = [], p2Red = [];
+
+      function p2SpawnUnit(side) {
+        const mesh = createP2Unit(side === 'blue' ? P2_BLUE : P2_RED);
+        const x = (Math.random() - 0.5) * (P2_W - 1.5);
+        const z = side === 'blue'
+          ? P2_HALF * 0.1 + Math.random() * (P2_HALF - 0.4)
+          : -P2_HALF * 0.1 - Math.random() * (P2_HALF - 0.4);
+        mesh.position.set(x, 0.05, z);
+        p2scene.add(mesh);
+        const u = { mesh, vx: 0, vz: 0, spawnScale: 0 };
+        if (side === 'blue') p2Blue.push(u); else p2Red.push(u);
+      }
+
+      for (let i = 0; i < 3; i++) { p2SpawnUnit('blue'); p2SpawnUnit('red'); }
+
+      // ── P2 Bullets ──
+      const P2_BULLET_GEO  = new THREE.BoxGeometry(0.18, 0.1, 0.18);
+      const P2_BULLET_BLUE = new THREE.MeshBasicMaterial({ color: 0x00fff0 });
+      const P2_BULLET_RED  = new THREE.MeshBasicMaterial({ color: 0xff2d78 });
+      const P2_BULLET_SPEED = 14;
+      const P2_WIN = 150;
+
+      const p2BlueBullets = [], p2RedBullets = [];
+      let p2BlueSpawn = 0, p2RedSpawn = 0;
+      let p2BlueScore = 0, p2RedScore = 0;
+      let p2Elapsed = 0;
+      let p2Over = false;
+      const P2_SPAWN_INT = 0.10;
+
+      const p2cursor = { x: 0, z: P2_HALF / 2 };
+      let p2RedCursorX = 0;
+
+      const p2Raycaster = new THREE.Raycaster();
+      const p2Plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      window.addEventListener('mousemove', e => {
+        if (!wrap.classList.contains('show')) return;
+        const ndc = new THREE.Vector2(
+          (e.clientX / window.innerWidth) * 2 - 1,
+          (e.clientY / window.innerHeight) * -2 + 1
+        );
+        p2Raycaster.setFromCamera(ndc, p2camera);
+        const hit = new THREE.Vector3();
+        if (p2Raycaster.ray.intersectPlane(p2Plane, hit)) {
+          p2cursor.x = Math.max(-P2_W / 2 + 0.5, Math.min(P2_W / 2 - 0.5, hit.x));
+          p2cursor.z = Math.max(0.2, Math.min(P2_HALF - 0.2, hit.z));
+        }
+      });
+
+      function p2SpawnBullet(side) {
+        const x = (Math.random() - 0.5) * (P2_W - 0.5);
+        const vx = (Math.random() - 0.5) * 3.0;
+        const vz = (side === 'blue' ? -1 : 1) * P2_BULLET_SPEED;
+        const mat = side === 'blue' ? P2_BULLET_BLUE : P2_BULLET_RED;
+        const mesh = new THREE.Mesh(P2_BULLET_GEO, mat);
+        const z = side === 'blue' ? P2_HALF : -P2_HALF;
+        mesh.position.set(x, 0.15, z);
+        const light = new THREE.PointLight(side === 'blue' ? 0x00fff0 : 0xff2d78, 1.2, 2.5);
+        mesh.add(light);
+        p2scene.add(mesh);
+        const b = { mesh, vx, vz, alive: true,
+          destroy() { p2scene.remove(this.mesh); this.alive = false; }
+        };
+        if (side === 'blue') p2BlueBullets.push(b); else p2RedBullets.push(b);
+      }
+
+      function p2ScatterUnits(units, ix, iz, force) {
+        for (const u of units) {
+          const dx = u.mesh.position.x - ix;
+          const dz = u.mesh.position.z - iz;
+          const d = Math.sqrt(dx*dx + dz*dz) || 0.001;
+          if (d < 3.0) {
+            const s = force * (1 - d / 3.0);
+            u.vx += (dx/d)*s; u.vz += (dz/d)*s;
+          }
+        }
+      }
+
+      function p2UpdateUnits(units, tgX, tgZ, halfMin, halfMax, dt) {
+        const SK = 14, RD = 1.4, RK = 3.0, DMP = 3.0, MV = 60;
+        for (const u of units) {
+          u.vx += (tgX - u.mesh.position.x) * SK * dt;
+          u.vz += (tgZ - u.mesh.position.z) * SK * dt;
+          for (const o of units) {
+            if (o === u) continue;
+            const ex = u.mesh.position.x - o.mesh.position.x;
+            const ez = u.mesh.position.z - o.mesh.position.z;
+            const d = Math.sqrt(ex*ex+ez*ez)||0.001;
+            if (d < RD) { const f = RK/(d*d)*dt; u.vx+=(ex/d)*f; u.vz+=(ez/d)*f; }
+          }
+          u.vx *= Math.max(0, 1 - DMP*dt);
+          u.vz *= Math.max(0, 1 - DMP*dt);
+          u.vx = Math.max(-MV, Math.min(MV, u.vx));
+          u.vz = Math.max(-MV, Math.min(MV, u.vz));
+          u.mesh.position.x += u.vx * dt;
+          u.mesh.position.z += u.vz * dt;
+          if (u.mesh.position.x < -P2_W/2+0.5) { u.mesh.position.x=-P2_W/2+0.5; u.vx=45+Math.random()*20; u.vz+=(Math.random()-0.5)*10; }
+          else if (u.mesh.position.x > P2_W/2-0.5) { u.mesh.position.x=P2_W/2-0.5; u.vx=-(45+Math.random()*20); u.vz+=(Math.random()-0.5)*10; }
+          if (u.mesh.position.z < halfMin+0.3) { u.mesh.position.z=halfMin+0.3; u.vz=30+Math.random()*15; u.vx+=(Math.random()-0.5)*10; }
+          else if (u.mesh.position.z > halfMax-0.3) { u.mesh.position.z=halfMax-0.3; u.vz=-(30+Math.random()*15); u.vx+=(Math.random()-0.5)*10; }
+        }
+      }
+
+      function p2UpdateHUD() {
+        document.getElementById('p2-blue-fill').style.width = Math.min(p2BlueScore / P2_WIN * 100, 100) + '%';
+        document.getElementById('p2-red-fill').style.width  = Math.min(p2RedScore  / P2_WIN * 100, 100) + '%';
+        document.getElementById('p2-blue-score').textContent = p2BlueScore;
+        document.getElementById('p2-red-score').textContent  = p2RedScore;
+      }
+
+      function p2TriggerGameOver(msg) {
+        p2Over = true;
+        document.getElementById('overlay-title').textContent = msg;
+        document.getElementById('overlay-next').style.display = 'none';
+        document.getElementById('overlay').classList.add('show');
+      }
+
+      window.addEventListener('resize', () => {
+        const a = window.innerWidth / window.innerHeight;
+        p2camera.left = -p2d * a; p2camera.right = p2d * a;
+        p2camera.updateProjectionMatrix();
+        p2renderer.setSize(window.innerWidth, window.innerHeight);
+        p2renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      });
+
+      let p2Last = performance.now();
+
+      function p2Loop() {
+        requestAnimationFrame(p2Loop);
+        if (p2Over) { p2renderer.render(p2scene, p2camera); return; }
+
+        const now = performance.now();
+        const dt = Math.min((now - p2Last) / 1000, 0.05);
+        p2Last = now;
+        p2Elapsed += dt;
+
+        p2BlueSpawn += dt; p2RedSpawn += dt;
+        if (p2BlueSpawn >= P2_SPAWN_INT) { p2SpawnBullet('blue'); p2BlueSpawn = 0; }
+        if (p2RedSpawn  >= P2_SPAWN_INT) { p2SpawnBullet('red');  p2RedSpawn  = 0; }
+
+        for (const b of [...p2BlueBullets, ...p2RedBullets]) {
+          if (!b.alive) continue;
+          b.mesh.position.x += b.vx * dt;
+          b.mesh.position.z += b.vz * dt;
+          if (b.mesh.position.x < -P2_W/2) b.mesh.position.x = -P2_W/2;
+          if (b.mesh.position.x >  P2_W/2) b.mesh.position.x =  P2_W/2;
+        }
+
+        for (const b of p2BlueBullets) { if (b.alive && b.mesh.position.z < -P2_HALF-1) b.destroy(); }
+        for (const b of p2RedBullets)  { if (b.alive && b.mesh.position.z >  P2_HALF+1) b.destroy(); }
+        for (let i = p2BlueBullets.length-1; i >= 0; i--) if (!p2BlueBullets[i].alive) p2BlueBullets.splice(i,1);
+        for (let i = p2RedBullets.length-1;  i >= 0; i--) if (!p2RedBullets[i].alive)  p2RedBullets.splice(i,1);
+
+        if (p2BlueBullets.length > 0) {
+          let wx = 0, wt = 0;
+          for (const b of p2BlueBullets) {
+            if (!b.alive) continue;
+            const prox = (-b.mesh.position.z + P2_HALF) / (2 * P2_HALF);
+            const w = prox * prox + 0.1;
+            wx += b.mesh.position.x * w; wt += w;
+          }
+          wx += p2cursor.x * 0.4; wt += 0.4;
+          const tgt = wx / wt;
+          const diff = Math.min(p2Elapsed / 60, 1);
+          const spd = (9 + diff * 8) * dt;
+          const dx = tgt - p2RedCursorX;
+          p2RedCursorX += Math.sign(dx) * Math.min(Math.abs(dx), spd);
+          p2RedCursorX = Math.max(-P2_W/2+0.5, Math.min(P2_W/2-0.5, p2RedCursorX));
+        }
+
+        p2UpdateUnits(p2Blue, p2cursor.x, p2cursor.z, 0, P2_HALF, dt);
+        p2UpdateUnits(p2Red, p2RedCursorX, -P2_HALF/2, -P2_HALF, 0, dt);
+
+        for (const b of p2RedBullets) {
+          if (!b.alive) continue;
+          for (const u of p2Blue) {
+            const dx = b.mesh.position.x - u.mesh.position.x;
+            const dz = b.mesh.position.z - u.mesh.position.z;
+            if (Math.sqrt(dx*dx+dz*dz) < 0.6) {
+              p2ScatterUnits(p2Blue, b.mesh.position.x, b.mesh.position.z, 80);
+              b.destroy(); break;
+            }
+          }
+          if (b.alive && b.mesh.position.z > P2_HALF) {
+            b.destroy(); p2SpawnUnit('red'); p2RedScore++;
+          }
+        }
+
+        for (const b of p2BlueBullets) {
+          if (!b.alive) continue;
+          for (const u of p2Red) {
+            const dx = b.mesh.position.x - u.mesh.position.x;
+            const dz = b.mesh.position.z - u.mesh.position.z;
+            if (Math.sqrt(dx*dx+dz*dz) < 0.6) {
+              p2ScatterUnits(p2Red, b.mesh.position.x, b.mesh.position.z, 80);
+              b.destroy(); break;
+            }
+          }
+          if (b.alive && b.mesh.position.z < -P2_HALF) {
+            b.destroy(); p2SpawnUnit('blue'); p2BlueScore++;
+          }
+        }
+
+        if (p2BlueScore >= P2_WIN) p2TriggerGameOver('YOU WIN 🎉');
+        if (p2RedScore  >= P2_WIN) p2TriggerGameOver('YOU LOSE 💀');
+
+        p2UpdateHUD();
+
+        for (const u of [...p2Blue, ...p2Red]) {
+          if (u.spawnScale < 1) {
+            u.spawnScale = Math.min(1, u.spawnScale + dt * 4);
+            u.mesh.scale.setScalar(u.spawnScale);
+          }
+        }
+
+        p2renderer.render(p2scene, p2camera);
+      }
+      p2Loop();
+    }
 
     function getUnlocked() {
       try {
