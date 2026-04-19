@@ -60,6 +60,40 @@
     #story-btn { opacity: 0; transition: opacity 0.6s; pointer-events: none; }
     #story-btn.ready { opacity: 1; pointer-events: auto; }
 
+    /* ── Level Select ───────────────────────────────────────────────── */
+    #level-select {
+      position: fixed; inset: 0; z-index: 99; display: none;
+      align-items: center; justify-content: center; flex-direction: column; gap: 32px;
+      background: #0a0a0f; font-family: monospace; color: #fff;
+    }
+    #level-select.show { display: flex; }
+    #level-select h2 {
+      font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #555;
+    }
+    .level-cards { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+    .level-card {
+      width: 140px; padding: 24px 16px; text-align: center;
+      border: 1px solid #333; border-radius: 6px; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      user-select: none;
+    }
+    .level-card:hover:not(.locked) { border-color: #00ff41; background: rgba(0,255,65,0.06); }
+    .level-card.locked { opacity: 0.35; cursor: default; }
+    .level-card .card-phase {
+      font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+      color: #555; margin-bottom: 8px;
+    }
+    .level-card .card-name { font-size: 20px; color: #fff; margin-bottom: 6px; }
+    .level-card .card-sub  { font-size: 11px; color: #555; }
+    .level-card.easy   { border-color: #2255cc; }
+    .level-card.medium { border-color: #cc8822; }
+    .level-card.hard   { border-color: #cc2222; }
+    .level-card.phase2 { border-color: #ff2d78; }
+    .level-card.easy:hover   { border-color: #4499ff; background: rgba(68,153,255,0.06); }
+    .level-card.medium:hover:not(.locked) { border-color: #ffaa44; background: rgba(255,170,68,0.06); }
+    .level-card.hard:hover:not(.locked)   { border-color: #ff4444; background: rgba(255,68,68,0.06); }
+    .level-card.phase2:hover:not(.locked) { border-color: #ff2d78; background: rgba(255,45,120,0.06); }
+
     /* ── HUD ────────────────────────────────────────────────────────── */
     #hud {
       position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
@@ -116,6 +150,33 @@
       <div class="phase-title" id="story-phase-title">Phase 1</div>
 
       <button id="story-btn">Start</button>
+    </div>
+  </div>
+
+  <!-- Level select -->
+  <div id="level-select">
+    <h2>Select Level</h2>
+    <div class="level-cards">
+      <div class="level-card easy" id="card-easy">
+        <div class="card-phase">Phase 1</div>
+        <div class="card-name">Easy</div>
+        <div class="card-sub">The Dream</div>
+      </div>
+      <div class="level-card medium locked" id="card-medium">
+        <div class="card-phase">Phase 1</div>
+        <div class="card-name">Medium</div>
+        <div class="card-sub">Faster</div>
+      </div>
+      <div class="level-card hard locked" id="card-hard">
+        <div class="card-phase">Phase 1</div>
+        <div class="card-name">Hard</div>
+        <div class="card-sub">No mercy</div>
+      </div>
+      <div class="level-card phase2 locked" id="card-phase2">
+        <div class="card-phase">Phase 2</div>
+        <div class="card-name">Miami</div>
+        <div class="card-sub" id="card-phase2-sub">Beat Hard first</div>
+      </div>
     </div>
   </div>
 
@@ -434,9 +495,44 @@
 
       document.getElementById('story-btn').addEventListener('click', () => {
         document.getElementById('story-screen').style.display = 'none';
-        gamePaused = false;
+        showLevelSelect();
       });
     })();
+
+    // ── Level select ──────────────────────────────────────────────────────
+    let currentLevel = 'easy';
+
+    // TODO: replaced in Task 3
+    function applyDifficulty(lvl) {}
+
+    // TODO: replaced in Task 4
+    function startPhase2() {}
+
+    function showLevelSelect() {
+      const unlocked = JSON.parse(localStorage.getItem('dg_unlocked') || '["easy"]');
+      ['medium', 'hard', 'phase2'].forEach(lvl => {
+        document.getElementById('card-' + lvl)
+          .classList.toggle('locked', !unlocked.includes(lvl));
+      });
+      const p2sub = document.getElementById('card-phase2-sub');
+      p2sub.textContent = unlocked.includes('phase2') ? 'Hotline Miami' : 'Beat Hard first';
+      document.getElementById('level-select').classList.add('show');
+    }
+
+    ['easy', 'medium', 'hard', 'phase2'].forEach(lvl => {
+      document.getElementById('card-' + lvl).addEventListener('click', () => {
+        const unlocked = JSON.parse(localStorage.getItem('dg_unlocked') || '["easy"]');
+        if (!unlocked.includes(lvl)) return;
+        currentLevel = lvl;
+        document.getElementById('level-select').classList.remove('show');
+        if (lvl === 'phase2') {
+          startPhase2(); // defined in Task 4
+        } else {
+          applyDifficulty(lvl); // defined in Task 3
+          gamePaused = false;
+        }
+      });
+    });
 
     // ── Input ──────────────────────────────────────────────────────────────
     const raycaster   = new THREE.Raycaster();
