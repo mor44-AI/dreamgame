@@ -59,6 +59,11 @@
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
     #story-btn { opacity: 0; transition: opacity 0.6s; pointer-events: none; }
     #story-btn.ready { opacity: 1; pointer-events: auto; }
+    .hud-badge { font-size:11px; letter-spacing:2px; color:#888; text-transform:uppercase; }
+    .btn-secondary {
+      margin-top:8px; background:#222; border:1px solid #555; color:#fff;
+      cursor:pointer; font-family:monospace; padding:6px 16px; border-radius:4px;
+    }
 
     /* ── Level Select ───────────────────────────────────────────────── */
     #level-select {
@@ -192,7 +197,7 @@
       <div class="bar"><div id="red-fill" class="fill red"></div></div>
       <span id="red-score">0</span><span>/100</span>
     </div>
-    <span id="hud-level" style="font-size:11px;letter-spacing:2px;color:#888;text-transform:uppercase;">EASY</span>
+    <span id="hud-level" class="hud-badge">EASY</span>
   </div>
 
   <!-- Win / lose overlay -->
@@ -201,8 +206,7 @@
     <div id="overlay-next" style="display:none">
       <div class="next-label">Unlocked</div>
       <div class="next-title" id="overlay-next-title">Phase 1 / Medium</div>
-      <button style="margin-top:8px;background:#222;border:1px solid #555;color:#fff;cursor:pointer;font-family:monospace;padding:6px 16px;border-radius:4px;"
-              id="choose-level-btn">Choose Level</button>
+      <button class="btn-secondary" id="choose-level-btn">Choose Level</button>
     </div>
     <button onclick="restartGame()">Play Again</button>
   </div>
@@ -512,8 +516,7 @@
     // ── Level select ──────────────────────────────────────────────────────
     let currentLevel = 'easy';
 
-    let applyDifficulty = (lvl) => {};
-    applyDifficulty = (lvl) => {
+    const applyDifficulty = (lvl) => {
       const cfg = DIFFICULTY_CONFIGS[lvl] || DIFFICULTY_CONFIGS.easy;
       BULLET_SPEED   = cfg.bulletSpeed;
       SPAWN_INTERVAL = cfg.spawnInterval;
