@@ -549,304 +549,565 @@
       const badge = document.getElementById('hud-level');
       if (badge) badge.textContent = lvl.toUpperCase();
     };
-    // ── Phase 2 — Hotline Miami ────────────────────────────────────────────────
+    // ── Phase 2 — Rio ─────────────────────────────────────────────────────────
     function startPhase2() {
+      // ── Show Rio canvas, hide Phase 1 ──
+      window.overlayRestart = startPhase2;
       renderer.domElement.style.display = 'none';
       document.getElementById('hud').style.display = 'none';
+      document.getElementById('overlay').classList.remove('show');
+      document.getElementById('overlay-play-again-btn').style.display = 'none';
+      document.getElementById('choose-level-btn').style.display   = 'none';
+      document.getElementById('overlay-next').style.display = 'none';
       document.getElementById('p2-hud').classList.add('show');
-
       const wrap = document.getElementById('p2-canvas-wrap');
+      wrap.innerHTML = '';
       wrap.classList.add('show');
 
-      // ── P2 Renderer ──
-      const p2renderer = new THREE.WebGLRenderer({ antialias: true });
-      p2renderer.setSize(window.innerWidth, window.innerHeight);
-      p2renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      wrap.appendChild(p2renderer.domElement);
+      // ── Canvas setup ──
+      const p2canvas = document.createElement('canvas');
+      wrap.appendChild(p2canvas);
+      const p2ctx = p2canvas.getContext('2d');
+      const CW = 510, CH = 444;
+      let p2scale = 1, p2ox = 0, p2oy = 0;
 
-      // ── P2 Scene ──
-      const p2scene = new THREE.Scene();
-      p2scene.background = new THREE.Color(0x0d0015);
-
-      // Top-down orthographic camera
-      const p2aspect = window.innerWidth / window.innerHeight;
-      const P2_CAM_HALF = 16;
-      const p2camera = new THREE.OrthographicCamera(
-        -P2_CAM_HALF * p2aspect, P2_CAM_HALF * p2aspect, P2_CAM_HALF, -P2_CAM_HALF, 0.1, 200
-      );
-      p2camera.position.set(0, 30, 0);
-      p2camera.lookAt(0, 0, 0);
-
-      // ── P2 Board ──
-      const P2_W = 24, P2_D = 24, P2_HALF = 12;
-
-      // Dark floor
-      const floorGeo = new THREE.PlaneGeometry(P2_W, P2_D);
-      const floorMat = new THREE.MeshBasicMaterial({ color: 0x0d0015 });
-      const floor = new THREE.Mesh(floorGeo, floorMat);
-      floor.rotation.x = -Math.PI / 2;
-      p2scene.add(floor);
-
-      // Neon grid lines
-      const gridMat = new THREE.LineBasicMaterial({ color: 0x330044 });
-      for (let i = -P2_W / 2; i <= P2_W / 2; i += 2) {
-        const g = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(i, 0.01, -P2_D / 2),
-          new THREE.Vector3(i, 0.01,  P2_D / 2),
-        ]);
-        p2scene.add(new THREE.Line(g, gridMat));
+      function p2Resize() {
+        p2canvas.width  = window.innerWidth;
+        p2canvas.height = window.innerHeight;
+        p2scale = Math.min(window.innerWidth / CW, window.innerHeight / CH);
+        p2ox = (window.innerWidth  - CW * p2scale) / 2;
+        p2oy = (window.innerHeight - CH * p2scale) / 2;
       }
-      for (let z = -P2_D / 2; z <= P2_D / 2; z += 2) {
-        const g = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(-P2_W / 2, 0.01, z),
-          new THREE.Vector3( P2_W / 2, 0.01, z),
-        ]);
-        p2scene.add(new THREE.Line(g, gridMat));
+      p2Resize();
+      window.addEventListener('resize', p2Resize);
+
+      // Convert browser clientX/Y → canvas logical coords
+      function toLogical(cx, cy) {
+        return { x: (cx - p2ox) / p2scale, y: (cy - p2oy) / p2scale };
       }
 
-      // Centre divider (hot pink)
-      const divMat = new THREE.LineBasicMaterial({ color: 0xff2d78 });
-      const divG = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-P2_W / 2, 0.02, 0),
-        new THREE.Vector3( P2_W / 2, 0.02, 0),
-      ]);
-      p2scene.add(new THREE.Line(divG, divMat));
+      // ── Map data ──
+      const ROOMS = [
+        {id:0,  x:8,   y:8,   w:108, h:96,  type:'start'},
+        {id:1,  x:8,   y:130, w:108, h:76,  type:'normal'},
+        {id:2,  x:8,   y:206, w:108, h:84,  type:'normal'},
+        {id:3,  x:8,   y:316, w:108, h:64,  type:'normal'},
+        {id:4,  x:8,   y:380, w:108, h:56,  type:'dead'},
+        {id:5,  x:140, y:8,   w:90,  h:60,  type:'normal'},
+        {id:6,  x:140, y:68,  w:90,  h:76,  type:'normal'},
+        {id:7,  x:140, y:170, w:90,  h:84,  type:'normal'},
+        {id:8,  x:140, y:254, w:90,  h:72,  type:'normal'},
+        {id:9,  x:140, y:352, w:90,  h:84,  type:'dead'},
+        {id:10, x:254, y:8,   w:105, h:88,  type:'normal'},
+        {id:11, x:254, y:122, w:105, h:68,  type:'normal'},
+        {id:12, x:254, y:190, w:105, h:88,  type:'normal'},
+        {id:13, x:254, y:304, w:105, h:68,  type:'normal'},
+        {id:14, x:254, y:372, w:105, h:64,  type:'dead'},
+        {id:15, x:383, y:8,   w:119, h:100, type:'normal'},
+        {id:16, x:383, y:108, w:119, h:72,  type:'normal'},
+        {id:17, x:383, y:206, w:119, h:76,  type:'normal'},
+        {id:18, x:383, y:282, w:119, h:74,  type:'normal'},
+        {id:19, x:383, y:382, w:119, h:54,  type:'exit'},
+      ];
 
-      // Zone tints
-      const makeZone = (color, z) => {
-        const m = new THREE.Mesh(
-          new THREE.PlaneGeometry(P2_W, P2_HALF),
-          new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.04, depthWrite: false })
-        );
-        m.rotation.x = -Math.PI / 2;
-        m.position.set(0, 0.01, z);
-        p2scene.add(m);
-      };
-      makeZone(0x00fff0, P2_HALF / 2);
-      makeZone(0xff2d78, -P2_HALF / 2);
+      // V corridors: h>w  |  H corridors: w>h
+      const CORRIDORS = [
+        {x:30,  y:104, w:22, h:26, rooms:[0,1]},
+        {x:30,  y:290, w:22, h:26, rooms:[2,3]},
+        {x:162, y:144, w:22, h:26, rooms:[6,7]},
+        {x:162, y:326, w:22, h:26, rooms:[8,9]},
+        {x:276, y:96,  w:22, h:26, rooms:[10,11]},
+        {x:276, y:278, w:22, h:26, rooms:[12,13]},
+        {x:404, y:180, w:22, h:26, rooms:[16,17]},
+        {x:404, y:356, w:22, h:26, rooms:[18,19]},
+        {x:116, y:22,  w:24, h:20, rooms:[0,5]},
+        {x:230, y:72,  w:24, h:20, rooms:[6,10]},
+        {x:230, y:256, w:24, h:20, rooms:[8,12]},
+        {x:359, y:22,  w:24, h:20, rooms:[10,15]},
+        {x:359, y:316, w:24, h:20, rooms:[13,18]},
+      ];
 
-      p2scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+      // Shared walls: rooms touching directly with a doorway opening
+      const SHARED_WALLS = [
+        {y:206, x:30,  w:22, a:1,  b:2 },
+        {y:380, x:30,  w:22, a:3,  b:4 },
+        {y:68,  x:162, w:22, a:5,  b:6 },
+        {y:254, x:162, w:22, a:7,  b:8 },
+        {y:190, x:276, w:22, a:11, b:12},
+        {y:372, x:276, w:22, a:13, b:14},
+        {y:108, x:404, w:22, a:15, b:16},
+        {y:282, x:404, w:22, a:17, b:18},
+      ];
 
-      // ── P2 Unit factory ──
-      function createP2Unit(color) {
-        const g = new THREE.Group();
-        const mat = new THREE.MeshBasicMaterial({ color });
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.7), mat);
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.3), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-        head.position.set(0, 0.05, -0.22);
-        g.add(body);
-        g.add(head);
-        return g;
+      // ── Passability ──
+      function isPassable(px, py) {
+        for (const r of ROOMS)
+          if (px >= r.x && px <= r.x+r.w && py >= r.y && py <= r.y+r.h) return true;
+        for (const c of CORRIDORS)
+          if (px >= c.x && px <= c.x+c.w && py >= c.y && py <= c.y+c.h) return true;
+        return false;
       }
 
-      const P2_BLUE = 0x00fff0;
-      const P2_RED  = 0xff2d78;
+      // isPassable tests
+      console.assert(isPassable(62, 56)  === true,  'FAIL: center of R0 should be passable');
+      console.assert(isPassable(0,  0)   === false, 'FAIL: corner outside all rooms');
+      console.assert(isPassable(41, 117) === true,  'FAIL: V corridor R0→R1 should be passable');
+      console.assert(isPassable(128, 32) === true,  'FAIL: H corridor R0→R5 should be passable');
+      console.log('isPassable: tests done (check for FAIL above)');
 
-      const p2Blue = [], p2Red = [];
-
-      function p2SpawnUnit(side) {
-        const mesh = createP2Unit(side === 'blue' ? P2_BLUE : P2_RED);
-        const x = (Math.random() - 0.5) * (P2_W - 1.5);
-        const z = side === 'blue'
-          ? P2_HALF * 0.1 + Math.random() * (P2_HALF - 0.4)
-          : -P2_HALF * 0.1 - Math.random() * (P2_HALF - 0.4);
-        mesh.position.set(x, 0.05, z);
-        p2scene.add(mesh);
-        const u = { mesh, vx: 0, vz: 0, spawnScale: 0 };
-        if (side === 'blue') p2Blue.push(u); else p2Red.push(u);
+      function roomContaining(px, py) {
+        for (const r of ROOMS)
+          if (px >= r.x && px <= r.x+r.w && py >= r.y && py <= r.y+r.h) return r;
+        return null;
       }
 
-      for (let i = 0; i < 3; i++) { p2SpawnUnit('blue'); p2SpawnUnit('red'); }
-
-      // ── P2 Bullets ──
-      const P2_BULLET_GEO  = new THREE.BoxGeometry(0.18, 0.1, 0.18);
-      const P2_BULLET_BLUE = new THREE.MeshBasicMaterial({ color: 0x00fff0 });
-      const P2_BULLET_RED  = new THREE.MeshBasicMaterial({ color: 0xff2d78 });
-      const P2_BULLET_SPEED = 14;
-      const P2_WIN = 150;
-
-      const p2BlueBullets = [], p2RedBullets = [];
-      let p2SpawnTimer = 0;
-      let p2BlueScore = 0, p2RedScore = 0;
-      let p2Elapsed = 0;
-      let p2Over = false;
-      const P2_SPAWN_INT = 0.10;
-
-      const p2cursor = { x: 0, z: P2_HALF / 2 };
-      let p2RedCursorX = 0;
-
-      const p2Raycaster = new THREE.Raycaster();
-      const p2Plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-      window.addEventListener('mousemove', e => {
-        if (!wrap.classList.contains('show')) return;
-        const ndc = new THREE.Vector2(
-          (e.clientX / window.innerWidth) * 2 - 1,
-          (e.clientY / window.innerHeight) * -2 + 1
-        );
-        p2Raycaster.setFromCamera(ndc, p2camera);
-        const hit = new THREE.Vector3();
-        if (p2Raycaster.ray.intersectPlane(p2Plane, hit)) {
-          p2cursor.x = Math.max(-P2_W / 2 + 0.5, Math.min(P2_W / 2 - 0.5, hit.x));
-          p2cursor.z = Math.max(0.2, Math.min(P2_HALF - 0.2, hit.z));
+      // ── Wall drawing helpers ──
+      function openingsFor(r) {
+        const op = {top:[],bottom:[],left:[],right:[]};
+        for (const c of CORRIDORS) {
+          const H = c.w > c.h;
+          if (H) {
+            if (c.x     === r.x+r.w && c.y>=r.y && c.y+c.h<=r.y+r.h) op.right.push({from:c.y,to:c.y+c.h});
+            if (c.x+c.w === r.x     && c.y>=r.y && c.y+c.h<=r.y+r.h) op.left.push ({from:c.y,to:c.y+c.h});
+          } else {
+            if (c.y     === r.y+r.h && c.x>=r.x && c.x+c.w<=r.x+r.w) op.bottom.push({from:c.x,to:c.x+c.w});
+            if (c.y+c.h === r.y     && c.x>=r.x && c.x+c.w<=r.x+r.w) op.top.push   ({from:c.x,to:c.x+c.w});
+          }
         }
+        for (const sw of SHARED_WALLS) {
+          if (sw.a === r.id) op.bottom.push({from:sw.x, to:sw.x+sw.w});
+          if (sw.b === r.id) op.top.push   ({from:sw.x, to:sw.x+sw.w});
+        }
+        return op;
+      }
+
+      function segs(ctx, horiz, fixed, start, end, openings) {
+        const sorted = [...openings].sort((a,b)=>a.from-b.from);
+        let pos = start;
+        ctx.beginPath();
+        for (const {from,to} of sorted) {
+          if (pos < from) horiz ? (ctx.moveTo(pos,fixed),ctx.lineTo(from,fixed)) : (ctx.moveTo(fixed,pos),ctx.lineTo(fixed,from));
+          pos = Math.max(pos, to);
+        }
+        if (pos < end) horiz ? (ctx.moveTo(pos,fixed),ctx.lineTo(end,fixed)) : (ctx.moveTo(fixed,pos),ctx.lineTo(fixed,end));
+        ctx.stroke();
+      }
+
+      function drawRoomWalls(ctx, r) {
+        const {x,y,w,h} = r, op = openingsFor(r);
+        segs(ctx,true, y,   x,   x+w, op.top);
+        segs(ctx,true, y+h, x,   x+w, op.bottom);
+        segs(ctx,false,x,   y,   y+h, op.left);
+        segs(ctx,false,x+w, y,   y+h, op.right);
+      }
+
+      function drawCorrWalls(ctx, c) {
+        const H = c.w > c.h;
+        ctx.beginPath();
+        if (H) {
+          ctx.moveTo(c.x,c.y);     ctx.lineTo(c.x+c.w,c.y);
+          ctx.moveTo(c.x,c.y+c.h); ctx.lineTo(c.x+c.w,c.y+c.h);
+        } else {
+          ctx.moveTo(c.x,c.y);     ctx.lineTo(c.x,c.y+c.h);
+          ctx.moveTo(c.x+c.w,c.y); ctx.lineTo(c.x+c.w,c.y+c.h);
+        }
+        ctx.stroke();
+      }
+
+      // ── Draw map ──
+      function drawMap(ctx, visitedRooms) {
+        ctx.fillStyle = '#07070f';
+        ctx.fillRect(0, 0, CW, CH);
+
+        // Floors
+        for (const r of ROOMS) {
+          if (visitedRooms && !visitedRooms.has(r.id)) continue;
+          ctx.fillStyle = r.type==='exit'?'#071a09':r.type==='dead'?'#180a0a':'#10102a';
+          ctx.fillRect(r.x, r.y, r.w, r.h);
+        }
+        for (const c of CORRIDORS) {
+          if (visitedRooms && !visitedRooms.has(c.rooms[0]) && !visitedRooms.has(c.rooms[1])) continue;
+          ctx.fillStyle = '#0d0d20';
+          ctx.fillRect(c.x, c.y, c.w, c.h);
+        }
+
+        // Walls
+        for (const r of ROOMS) {
+          if (visitedRooms && !visitedRooms.has(r.id)) continue;
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = r.type==='exit'?'#006633':r.type==='dead'?'#3a1010':'#222248';
+          drawRoomWalls(ctx, r);
+        }
+        ctx.strokeStyle = '#181830';
+        ctx.lineWidth = 1;
+        for (const c of CORRIDORS) {
+          if (visitedRooms && !visitedRooms.has(c.rooms[0]) && !visitedRooms.has(c.rooms[1])) continue;
+          drawCorrWalls(ctx, c);
+        }
+
+        // Labels
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        for (const r of ROOMS) {
+          if (visitedRooms && !visitedRooms.has(r.id)) continue;
+          const cx = r.x+r.w/2, cy = r.y+r.h/2;
+          if (r.type==='exit')        { ctx.fillStyle='#00cc55'; ctx.font='bold 11px monospace'; ctx.fillText('✦ EXIT',cx,cy); }
+          else if (r.type==='dead')   { ctx.fillStyle='#773333'; ctx.font='bold 10px monospace'; ctx.fillText('✕',cx,cy); }
+          else if (r.type==='start')  { ctx.fillStyle='#3355aa'; ctx.font='bold 9px monospace';  ctx.fillText('START',cx,cy); }
+        }
+      }
+
+      // ── Player state ──
+      const R0 = ROOMS[0];
+      const player = {
+        x: R0.x + R0.w / 2,
+        y: R0.y + R0.h / 2,
+        angle: 0,
+        speed: 120,
+        radius: 6,
+        alive: true,
+      };
+
+      // ── Input ──
+      const keys = {};
+      window.addEventListener('keydown', e => { keys[e.code] = true;  });
+      window.addEventListener('keyup',   e => { keys[e.code] = false; });
+
+      let mouseLogical = { x: player.x, y: player.y };
+      window.addEventListener('mousemove', e => {
+        mouseLogical = toLogical(e.clientX, e.clientY);
       });
 
-      function p2SpawnBullet(side) {
-        const x = (Math.random() - 0.5) * (P2_W - 0.5);
-        const vx = (Math.random() - 0.5) * 3.0;
-        const vz = (side === 'blue' ? -1 : 1) * P2_BULLET_SPEED;
-        const mat = side === 'blue' ? P2_BULLET_BLUE : P2_BULLET_RED;
-        const mesh = new THREE.Mesh(P2_BULLET_GEO, mat);
-        const z = side === 'blue' ? P2_HALF : -P2_HALF;
-        mesh.position.set(x, 0.15, z);
-        const light = new THREE.PointLight(side === 'blue' ? 0x00fff0 : 0xff2d78, 1.2, 2.5);
-        mesh.add(light);
-        p2scene.add(mesh);
-        const b = { mesh, vx, vz, alive: true,
-          destroy() { p2scene.remove(this.mesh); this.alive = false; }
-        };
-        if (side === 'blue') p2BlueBullets.push(b); else p2RedBullets.push(b);
-      }
+      // ── Bullets ──
+      const P2_BULLET_SPEED = 400;
+      const P2_BULLET_RANGE = 600;
+      const playerBullets = [];
+      const enemyBullets  = [];
 
-      function p2UpdateUnits(units, tgX, tgZ, halfMin, halfMax, dt) {
-        const SK = 14, RD = 1.4, RK = 3.0, DMP = 3.0, MV = 60;
-        for (const u of units) {
-          u.vx += (tgX - u.mesh.position.x) * SK * dt;
-          u.vz += (tgZ - u.mesh.position.z) * SK * dt;
-          for (const o of units) {
-            if (o === u) continue;
-            const ex = u.mesh.position.x - o.mesh.position.x;
-            const ez = u.mesh.position.z - o.mesh.position.z;
-            const d = Math.sqrt(ex*ex+ez*ez)||0.001;
-            if (d < RD) { const f = RK/(d*d)*dt; u.vx+=(ex/d)*f; u.vz+=(ez/d)*f; }
+      window.addEventListener('click', e => {
+        if (!wrap.classList.contains('show') || p2Over || !player.alive) return;
+        playerBullets.push({
+          x: player.x + Math.cos(player.angle)*10,
+          y: player.y + Math.sin(player.angle)*10,
+          vx: Math.cos(player.angle) * P2_BULLET_SPEED,
+          vy: Math.sin(player.angle) * P2_BULLET_SPEED,
+          dist: 0,
+        });
+      });
+
+      function updateBullets(arr, dt) {
+        for (let i = arr.length - 1; i >= 0; i--) {
+          const b = arr[i];
+          b.x += b.vx * dt;
+          b.y += b.vy * dt;
+          b.dist += Math.sqrt(b.vx*b.vx + b.vy*b.vy) * dt;
+          if (b.dist > P2_BULLET_RANGE || !isPassable(b.x, b.y)) {
+            arr.splice(i, 1);
           }
-          u.vx *= Math.max(0, 1 - DMP*dt);
-          u.vz *= Math.max(0, 1 - DMP*dt);
-          u.vx = Math.max(-MV, Math.min(MV, u.vx));
-          u.vz = Math.max(-MV, Math.min(MV, u.vz));
-          u.mesh.position.x += u.vx * dt;
-          u.mesh.position.z += u.vz * dt;
-          if (u.mesh.position.x < -P2_W/2+0.5) { u.mesh.position.x=-P2_W/2+0.5; u.vx=45+Math.random()*20; u.vz+=(Math.random()-0.5)*10; }
-          else if (u.mesh.position.x > P2_W/2-0.5) { u.mesh.position.x=P2_W/2-0.5; u.vx=-(45+Math.random()*20); u.vz+=(Math.random()-0.5)*10; }
-          if (u.mesh.position.z < halfMin+0.3) { u.mesh.position.z=halfMin+0.3; u.vz=30+Math.random()*15; u.vx+=(Math.random()-0.5)*10; }
-          else if (u.mesh.position.z > halfMax-0.3) { u.mesh.position.z=halfMax-0.3; u.vz=-(30+Math.random()*15); u.vx+=(Math.random()-0.5)*10; }
         }
       }
 
-      function p2UpdateHUD() {
-        document.getElementById('p2-blue-fill').style.width = Math.min(p2BlueScore / P2_WIN * 100, 100) + '%';
-        document.getElementById('p2-red-fill').style.width  = Math.min(p2RedScore  / P2_WIN * 100, 100) + '%';
-        document.getElementById('p2-blue-score').textContent = p2BlueScore;
-        document.getElementById('p2-red-score').textContent  = p2RedScore;
+      function drawBullets(ctx) {
+        for (const b of playerBullets) {
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, 4, 0, Math.PI*2);
+          ctx.fillStyle = '#00ccff';
+          ctx.fill();
+        }
+        for (const b of enemyBullets) {
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, 4, 0, Math.PI*2);
+          ctx.fillStyle = '#ff3c3c';
+          ctx.fill();
+        }
       }
 
-      function p2TriggerGameOver(msg) {
+      // ── Enemies ──
+      const ENEMY_DEFS = [
+        {room:0,  rx:0.7, ry:0.5, patrolAxis:'H'},
+        {room:5,  rx:0.5, ry:0.5, patrolAxis:'H'},
+        {room:6,  rx:0.5, ry:0.5, patrolAxis:'V'},
+        {room:7,  rx:0.5, ry:0.5, patrolAxis:'H'},
+        {room:10, rx:0.5, ry:0.5, patrolAxis:'H'},
+        {room:12, rx:0.5, ry:0.5, patrolAxis:'V'},
+        {room:13, rx:0.5, ry:0.5, patrolAxis:'H'},
+        {room:15, rx:0.5, ry:0.5, patrolAxis:'H'},
+        {room:17, rx:0.5, ry:0.5, patrolAxis:'V'},
+        {room:18, rx:0.5, ry:0.5, patrolAxis:'H'},
+      ];
+
+      const enemies = ENEMY_DEFS.map(def => {
+        const r = ROOMS[def.room];
+        return {
+          x: r.x + def.rx * r.w,
+          y: r.y + def.ry * r.h,
+          angle: def.patrolAxis === 'H' ? 0 : Math.PI/2,
+          patrolAxis: def.patrolAxis,
+          patrolDir: 1,
+          patrolSpeed: 40,
+          room: def.room,
+          state: 'patrol',
+          lostTimer: 0,
+          shootTimer: 0,
+          alive: true,
+        };
+      });
+
+      // Line-of-sight: sample 5 points from enemy toward player
+      function hasLOS(ex, ey, px, py) {
+        for (let t = 0.1; t <= 0.9; t += 0.2) {
+          if (!isPassable(ex + (px-ex)*t, ey + (py-ey)*t)) return false;
+        }
+        return true;
+      }
+
+      // Returns true if player is inside enemy's 30° FOV cone at range ≤150
+      function canSeePlayer(e) {
+        const dx = player.x - e.x, dy = player.y - e.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > 150) return false;
+        const angleToPlayer = Math.atan2(dy, dx);
+        let diff = angleToPlayer - e.angle;
+        while (diff >  Math.PI) diff -= Math.PI*2;
+        while (diff < -Math.PI) diff += Math.PI*2;
+        if (Math.abs(diff) > Math.PI*15/180) return false;
+        return hasLOS(e.x, e.y, player.x, player.y);
+      }
+
+      function updateEnemies(dt) {
+        for (const e of enemies) {
+          if (!e.alive) continue;
+          if (!visitedRooms.has(e.room)) continue;
+
+          const sees = player.alive && canSeePlayer(e);
+
+          if (e.state === 'patrol') {
+            const r = ROOMS[e.room];
+            const margin = 8;
+            if (e.patrolAxis === 'H') {
+              e.x += e.patrolDir * e.patrolSpeed * dt;
+              e.angle = e.patrolDir > 0 ? 0 : Math.PI;
+              if (e.x > r.x + r.w - margin) { e.x = r.x + r.w - margin; e.patrolDir = -1; }
+              if (e.x < r.x + margin)        { e.x = r.x + margin;        e.patrolDir =  1; }
+            } else {
+              e.y += e.patrolDir * e.patrolSpeed * dt;
+              e.angle = e.patrolDir > 0 ? Math.PI/2 : -Math.PI/2;
+              if (e.y > r.y + r.h - margin) { e.y = r.y + r.h - margin; e.patrolDir = -1; }
+              if (e.y < r.y + margin)        { e.y = r.y + margin;        e.patrolDir =  1; }
+            }
+            if (sees) { e.state = 'alert'; e.lostTimer = 0; }
+
+          } else {
+            e.angle = Math.atan2(player.y - e.y, player.x - e.x);
+            if (sees) {
+              e.lostTimer = 0;
+              e.shootTimer += dt;
+              if (e.shootTimer >= 1.0) {
+                e.shootTimer = 0;
+                enemyBullets.push({
+                  x: e.x + Math.cos(e.angle)*10,
+                  y: e.y + Math.sin(e.angle)*10,
+                  vx: Math.cos(e.angle) * P2_BULLET_SPEED,
+                  vy: Math.sin(e.angle) * P2_BULLET_SPEED,
+                  dist: 0,
+                });
+              }
+            } else {
+              e.lostTimer += dt;
+              if (e.lostTimer >= 3.0) { e.state = 'patrol'; e.shootTimer = 0; }
+            }
+          }
+        }
+      }
+
+      function drawEnemies(ctx) {
+        for (const e of enemies) {
+          if (!e.alive) continue;
+          if (!visitedRooms.has(e.room)) continue;
+
+          const fovR = 150, half = Math.PI*15/180;
+          ctx.beginPath();
+          ctx.moveTo(e.x, e.y);
+          ctx.arc(e.x, e.y, fovR, e.angle-half, e.angle+half);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(255,50,50,0.10)';
+          ctx.fill();
+          ctx.strokeStyle = e.state==='alert' ? 'rgba(255,80,80,0.5)' : 'rgba(255,80,80,0.25)';
+          ctx.lineWidth = 0.7;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, 5, 0, Math.PI*2);
+          ctx.fillStyle = e.state==='alert' ? '#ff6060' : '#ff3c3c';
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.moveTo(e.x, e.y);
+          ctx.lineTo(e.x + Math.cos(e.angle)*9, e.y + Math.sin(e.angle)*9);
+          ctx.strokeStyle = '#ff6666';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+      }
+
+      function checkCollisions() {
+        for (let bi = playerBullets.length-1; bi >= 0; bi--) {
+          const b = playerBullets[bi];
+          for (const e of enemies) {
+            if (!e.alive) continue;
+            const dx = b.x-e.x, dy = b.y-e.y;
+            if (Math.sqrt(dx*dx+dy*dy) < 9) {
+              e.alive = false;
+              playerBullets.splice(bi, 1);
+              break;
+            }
+          }
+        }
+
+        if (player.alive) {
+          for (let bi = enemyBullets.length-1; bi >= 0; bi--) {
+            const b = enemyBullets[bi];
+            const dx = b.x-player.x, dy = b.y-player.y;
+            if (Math.sqrt(dx*dx+dy*dy) < 8) {
+              player.alive = false;
+              enemyBullets.splice(bi, 1);
+              p2TriggerGameOver(false);
+              return;
+            }
+          }
+        }
+      }
+
+      function p2TriggerGameOver(won) {
         p2Over = true;
-        document.getElementById('overlay-title').textContent = msg;
+        document.getElementById('overlay-title').textContent = won ? 'YOU WON 🎉' : 'GAME OVER 💀';
+        document.getElementById('overlay-play-again-btn').style.display = won ? 'none' : 'block';
+        document.getElementById('choose-level-btn').style.display = 'block';
         document.getElementById('overlay-next').style.display = 'none';
         document.getElementById('overlay').classList.add('show');
       }
 
-      window.addEventListener('resize', () => {
-        const a = window.innerWidth / window.innerHeight;
-        p2camera.left = -P2_CAM_HALF * a; p2camera.right = P2_CAM_HALF * a;
-        p2camera.top = P2_CAM_HALF; p2camera.bottom = -P2_CAM_HALF;
-        p2camera.updateProjectionMatrix();
-        p2renderer.setSize(window.innerWidth, window.innerHeight);
-        p2renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      });
+      function p2CheckWin() {
+        const r19 = ROOMS[19];
+        if (player.x >= r19.x && player.x <= r19.x+r19.w &&
+            player.y >= r19.y && player.y <= r19.y+r19.h) {
+          p2TriggerGameOver(true);
+        }
+      }
 
+      // ── Draw player ──
+      function drawPlayer(ctx) {
+        const {x, y, angle, radius} = player;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI*2);
+        ctx.fillStyle = '#00ccff';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(angle)*11, y + Math.sin(angle)*11);
+        ctx.strokeStyle = '#00eeff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // ── Mini-map ──
+      function drawMiniMap(ctx) {
+        const S = 6, GAP = 2, COLS = 5;
+        const MX = CW - 20 - (COLS * (S + GAP));
+        const MY = 20;
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(MX - 4, MY - 4, COLS*(S+GAP)+6, 4*(S+GAP)+6);
+        for (let i = 0; i < ROOMS.length; i++) {
+          const col = i % COLS, row = Math.floor(i / COLS);
+          const sx = MX + col*(S+GAP), sy = MY + row*(S+GAP);
+          const curRoom = roomContaining(player.x, player.y);
+          const isCurrent = curRoom && curRoom.id === i;
+          if (isCurrent)                                        ctx.fillStyle = '#00ccff';
+          else if (ROOMS[i].type==='exit' && visitedRooms.has(i)) ctx.fillStyle = '#003311';
+          else if (visitedRooms.has(i))                         ctx.fillStyle = '#1a1a5a';
+          else                                                  ctx.fillStyle = '#111';
+          ctx.fillRect(sx, sy, S, S);
+        }
+      }
+
+      // ── Game state ──
+      let p2Over = false;
+      const visitedRooms = new Set([0]);
+
+      // ── Game loop ──
       let p2Last = performance.now();
 
       function p2Loop() {
-        if (p2Over) { p2renderer.render(p2scene, p2camera); return; }
+        if (!wrap.classList.contains('show')) return;
         requestAnimationFrame(p2Loop);
+        if (p2Over) {
+          p2ctx.setTransform(p2scale, 0, 0, p2scale, p2ox, p2oy);
+          drawMap(p2ctx, visitedRooms);
+          drawEnemies(p2ctx);
+          drawPlayer(p2ctx);
+          drawBullets(p2ctx);
+          drawMiniMap(p2ctx);
+          return;
+        }
 
         const now = performance.now();
-        const dt = Math.min((now - p2Last) / 1000, 0.05);
+        const dt  = Math.min((now - p2Last) / 1000, 0.05);
         p2Last = now;
-        p2Elapsed += dt;
 
-        p2SpawnTimer += dt;
-        if (p2SpawnTimer >= P2_SPAWN_INT) { p2SpawnBullet('blue'); p2SpawnBullet('red'); p2SpawnTimer = 0; }
+        // ── Update visited rooms ──
+        const curRoom = roomContaining(player.x, player.y);
+        if (curRoom) visitedRooms.add(curRoom.id);
 
-        for (const b of p2BlueBullets) {
-          b.mesh.position.x += b.vx * dt;
-          b.mesh.position.z += b.vz * dt;
-          if (b.mesh.position.x < -P2_W/2) { b.mesh.position.x = -P2_W/2; b.vx = Math.abs(b.vx); }
-          if (b.mesh.position.x >  P2_W/2) { b.mesh.position.x =  P2_W/2; b.vx = -Math.abs(b.vx); }
-        }
-        for (const b of p2RedBullets) {
-          b.mesh.position.x += b.vx * dt;
-          b.mesh.position.z += b.vz * dt;
-          if (b.mesh.position.x < -P2_W/2) { b.mesh.position.x = -P2_W/2; b.vx = Math.abs(b.vx); }
-          if (b.mesh.position.x >  P2_W/2) { b.mesh.position.x =  P2_W/2; b.vx = -Math.abs(b.vx); }
-        }
+        // ── Player movement ──
+        player.angle = Math.atan2(
+          mouseLogical.y - player.y,
+          mouseLogical.x - player.x
+        );
 
-        for (const b of p2BlueBullets) { if (b.alive && b.mesh.position.z < -P2_HALF-1) b.destroy(); }
-        for (const b of p2RedBullets)  { if (b.alive && b.mesh.position.z >  P2_HALF+1) b.destroy(); }
-        for (let i = p2BlueBullets.length-1; i >= 0; i--) if (!p2BlueBullets[i].alive) p2BlueBullets.splice(i,1);
-        for (let i = p2RedBullets.length-1;  i >= 0; i--) if (!p2RedBullets[i].alive)  p2RedBullets.splice(i,1);
+        let dx = 0, dy = 0;
+        if (keys['KeyW'] || keys['ArrowUp'])    dy -= 1;
+        if (keys['KeyS'] || keys['ArrowDown'])  dy += 1;
+        if (keys['KeyA'] || keys['ArrowLeft'])  dx -= 1;
+        if (keys['KeyD'] || keys['ArrowRight']) dx += 1;
+        if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
 
-        // Weighted average X of incoming blue bullets — closer to red wall weighs more
-        if (p2BlueBullets.length > 0) {
-          let wx = 0, wt = 0;
-          for (const b of p2BlueBullets) {
-            const prox = (-b.mesh.position.z + P2_HALF) / (2 * P2_HALF);
-            const w = prox * prox + 0.1;
-            wx += b.mesh.position.x * w; wt += w;
-          }
-          wx += p2cursor.x * 0.4; wt += 0.4;
-          const tgt = wx / wt;
-          const diff = Math.min(p2Elapsed / 60, 1);
-          const spd = (9 + diff * 8) * dt;
-          const dx = tgt - p2RedCursorX;
-          p2RedCursorX += Math.sign(dx) * Math.min(Math.abs(dx), spd);
-          p2RedCursorX = Math.max(-P2_W/2+0.5, Math.min(P2_W/2-0.5, p2RedCursorX));
-        }
+        const PR = player.radius;
+        const moveX = dx * player.speed * dt;
+        const moveY = dy * player.speed * dt;
+        const nx = player.x + moveX;
+        const ny = player.y + moveY;
+        const canX = isPassable(nx,      player.y     ) &&
+                     isPassable(nx + PR, player.y     ) &&
+                     isPassable(nx - PR, player.y     ) &&
+                     isPassable(nx,      player.y + PR) &&
+                     isPassable(nx,      player.y - PR);
+        const canY = isPassable(player.x,      ny     ) &&
+                     isPassable(player.x + PR, ny     ) &&
+                     isPassable(player.x - PR, ny     ) &&
+                     isPassable(player.x,      ny + PR) &&
+                     isPassable(player.x,      ny - PR);
+        if (canX) player.x = nx;
+        if (canY) player.y = ny;
 
-        p2UpdateUnits(p2Blue, p2cursor.x, p2cursor.z, 0, P2_HALF, dt);
-        p2UpdateUnits(p2Red, p2RedCursorX, -P2_HALF/2, -P2_HALF, 0, dt);
+        // ── Update bullets ──
+        updateBullets(playerBullets, dt);
+        updateBullets(enemyBullets, dt);
 
-        for (const b of p2RedBullets) {
-          if (!b.alive) continue;
-          for (const u of p2Blue) {
-            const dx = b.mesh.position.x - u.mesh.position.x;
-            const dz = b.mesh.position.z - u.mesh.position.z;
-            if (Math.sqrt(dx*dx+dz*dz) < 0.6) {
-              scatterUnits(p2Blue, b.mesh.position.x, b.mesh.position.z, 80);
-              b.destroy(); break;
-            }
-          }
-          if (b.alive && b.mesh.position.z > P2_HALF) {
-            b.destroy(); p2SpawnUnit('red'); p2RedScore++;
-          }
-        }
+        // ── Update enemies ──
+        updateEnemies(dt);
 
-        for (const b of p2BlueBullets) {
-          if (!b.alive) continue;
-          for (const u of p2Red) {
-            const dx = b.mesh.position.x - u.mesh.position.x;
-            const dz = b.mesh.position.z - u.mesh.position.z;
-            if (Math.sqrt(dx*dx+dz*dz) < 0.6) {
-              scatterUnits(p2Red, b.mesh.position.x, b.mesh.position.z, 80);
-              b.destroy(); break;
-            }
-          }
-          if (b.alive && b.mesh.position.z < -P2_HALF) {
-            b.destroy(); p2SpawnUnit('blue'); p2BlueScore++;
-          }
-        }
+        // ── Collisions ──
+        checkCollisions();
 
-        if      (p2BlueScore >= P2_WIN) p2TriggerGameOver('YOU WIN 🎉');
-        else if (p2RedScore  >= P2_WIN) p2TriggerGameOver('YOU LOSE 💀');
+        // ── Win check ──
+        if (player.alive) p2CheckWin();
 
-        p2UpdateHUD();
-
-        for (const u of p2Blue) { if (u.spawnScale < 1) { u.spawnScale = Math.min(1, u.spawnScale + dt * 4); u.mesh.scale.setScalar(u.spawnScale); } }
-        for (const u of p2Red)  { if (u.spawnScale < 1) { u.spawnScale = Math.min(1, u.spawnScale + dt * 4); u.mesh.scale.setScalar(u.spawnScale); } }
-
-        p2renderer.render(p2scene, p2camera);
+        // ── Render ──
+        p2ctx.setTransform(p2scale, 0, 0, p2scale, p2ox, p2oy);
+        drawMap(p2ctx, visitedRooms);
+        drawEnemies(p2ctx);
+        drawPlayer(p2ctx);
+        drawBullets(p2ctx);
+        drawMiniMap(p2ctx);
       }
       p2Loop();
     }
