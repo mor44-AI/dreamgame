@@ -583,9 +583,9 @@
 
       // Top-down orthographic camera
       const p2aspect = window.innerWidth / window.innerHeight;
-      const p2d = 16;
+      const P2_CAM_HALF = 16;
       const p2camera = new THREE.OrthographicCamera(
-        -p2d * p2aspect, p2d * p2aspect, p2d, -p2d, 0.1, 200
+        -P2_CAM_HALF * p2aspect, P2_CAM_HALF * p2aspect, P2_CAM_HALF, -P2_CAM_HALF, 0.1, 200
       );
       p2camera.position.set(0, 30, 0);
       p2camera.lookAt(0, 0, 0);
@@ -679,7 +679,7 @@
       const P2_WIN = 150;
 
       const p2BlueBullets = [], p2RedBullets = [];
-      let p2BlueSpawn = 0, p2RedSpawn = 0;
+      let p2SpawnTimer = 0;
       let p2BlueScore = 0, p2RedScore = 0;
       let p2Elapsed = 0;
       let p2Over = false;
@@ -719,18 +719,6 @@
           destroy() { p2scene.remove(this.mesh); this.alive = false; }
         };
         if (side === 'blue') p2BlueBullets.push(b); else p2RedBullets.push(b);
-      }
-
-      function p2ScatterUnits(units, ix, iz, force) {
-        for (const u of units) {
-          const dx = u.mesh.position.x - ix;
-          const dz = u.mesh.position.z - iz;
-          const d = Math.sqrt(dx*dx + dz*dz) || 0.001;
-          if (d < 3.0) {
-            const s = force * (1 - d / 3.0);
-            u.vx += (dx/d)*s; u.vz += (dz/d)*s;
-          }
-        }
       }
 
       function p2UpdateUnits(units, tgX, tgZ, halfMin, halfMax, dt) {
@@ -774,8 +762,8 @@
 
       window.addEventListener('resize', () => {
         const a = window.innerWidth / window.innerHeight;
-        p2camera.left = -p2d * a; p2camera.right = p2d * a;
-        p2camera.top = p2d; p2camera.bottom = -p2d;
+        p2camera.left = -P2_CAM_HALF * a; p2camera.right = P2_CAM_HALF * a;
+        p2camera.top = P2_CAM_HALF; p2camera.bottom = -P2_CAM_HALF;
         p2camera.updateProjectionMatrix();
         p2renderer.setSize(window.innerWidth, window.innerHeight);
         p2renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -784,20 +772,24 @@
       let p2Last = performance.now();
 
       function p2Loop() {
-        requestAnimationFrame(p2Loop);
         if (p2Over) { p2renderer.render(p2scene, p2camera); return; }
+        requestAnimationFrame(p2Loop);
 
         const now = performance.now();
         const dt = Math.min((now - p2Last) / 1000, 0.05);
         p2Last = now;
         p2Elapsed += dt;
 
-        p2BlueSpawn += dt; p2RedSpawn += dt;
-        if (p2BlueSpawn >= P2_SPAWN_INT) { p2SpawnBullet('blue'); p2BlueSpawn = 0; }
-        if (p2RedSpawn  >= P2_SPAWN_INT) { p2SpawnBullet('red');  p2RedSpawn  = 0; }
+        p2SpawnTimer += dt;
+        if (p2SpawnTimer >= P2_SPAWN_INT) { p2SpawnBullet('blue'); p2SpawnBullet('red'); p2SpawnTimer = 0; }
 
-        for (const b of [...p2BlueBullets, ...p2RedBullets]) {
-          if (!b.alive) continue;
+        for (const b of p2BlueBullets) {
+          b.mesh.position.x += b.vx * dt;
+          b.mesh.position.z += b.vz * dt;
+          if (b.mesh.position.x < -P2_W/2) { b.mesh.position.x = -P2_W/2; b.vx = Math.abs(b.vx); }
+          if (b.mesh.position.x >  P2_W/2) { b.mesh.position.x =  P2_W/2; b.vx = -Math.abs(b.vx); }
+        }
+        for (const b of p2RedBullets) {
           b.mesh.position.x += b.vx * dt;
           b.mesh.position.z += b.vz * dt;
           if (b.mesh.position.x < -P2_W/2) { b.mesh.position.x = -P2_W/2; b.vx = Math.abs(b.vx); }
@@ -809,10 +801,10 @@
         for (let i = p2BlueBullets.length-1; i >= 0; i--) if (!p2BlueBullets[i].alive) p2BlueBullets.splice(i,1);
         for (let i = p2RedBullets.length-1;  i >= 0; i--) if (!p2RedBullets[i].alive)  p2RedBullets.splice(i,1);
 
+        // Weighted average X of incoming blue bullets — closer to red wall weighs more
         if (p2BlueBullets.length > 0) {
           let wx = 0, wt = 0;
           for (const b of p2BlueBullets) {
-            if (!b.alive) continue;
             const prox = (-b.mesh.position.z + P2_HALF) / (2 * P2_HALF);
             const w = prox * prox + 0.1;
             wx += b.mesh.position.x * w; wt += w;
@@ -835,7 +827,7 @@
             const dx = b.mesh.position.x - u.mesh.position.x;
             const dz = b.mesh.position.z - u.mesh.position.z;
             if (Math.sqrt(dx*dx+dz*dz) < 0.6) {
-              p2ScatterUnits(p2Blue, b.mesh.position.x, b.mesh.position.z, 80);
+              scatterUnits(p2Blue, b.mesh.position.x, b.mesh.position.z, 80);
               b.destroy(); break;
             }
           }
@@ -850,7 +842,7 @@
             const dx = b.mesh.position.x - u.mesh.position.x;
             const dz = b.mesh.position.z - u.mesh.position.z;
             if (Math.sqrt(dx*dx+dz*dz) < 0.6) {
-              p2ScatterUnits(p2Red, b.mesh.position.x, b.mesh.position.z, 80);
+              scatterUnits(p2Red, b.mesh.position.x, b.mesh.position.z, 80);
               b.destroy(); break;
             }
           }
@@ -864,12 +856,8 @@
 
         p2UpdateHUD();
 
-        for (const u of [...p2Blue, ...p2Red]) {
-          if (u.spawnScale < 1) {
-            u.spawnScale = Math.min(1, u.spawnScale + dt * 4);
-            u.mesh.scale.setScalar(u.spawnScale);
-          }
-        }
+        for (const u of p2Blue) { if (u.spawnScale < 1) { u.spawnScale = Math.min(1, u.spawnScale + dt * 4); u.mesh.scale.setScalar(u.spawnScale); } }
+        for (const u of p2Red)  { if (u.spawnScale < 1) { u.spawnScale = Math.min(1, u.spawnScale + dt * 4); u.mesh.scale.setScalar(u.spawnScale); } }
 
         p2renderer.render(p2scene, p2camera);
       }
