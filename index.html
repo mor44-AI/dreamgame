@@ -115,7 +115,7 @@
       <div class="phase-label">Now Playing</div>
       <div class="phase-title" id="story-phase-title">Phase 1</div>
 
-      <button id="story-btn" onclick="window.startFromStory()">Start</button>
+      <button id="story-btn">Start</button>
     </div>
   </div>
 
@@ -398,27 +398,28 @@
       const CHAR_DELAY = 28;
       const LINE_PAUSE = 320;
 
+      // Create cursor once and reuse across all ticks
+      const cursor = document.createElement('span');
+      cursor.className = 'tw-cursor';
+
       let lineIdx = 0;
       let charIdx = 0;
-      let cursor = null;
 
       function nextChar() {
         if (lineIdx >= lines.length) {
-          if (cursor) cursor.remove();
+          cursor.remove();
           document.getElementById('story-btn').classList.add('ready');
           return;
         }
 
         const { id, text } = lines[lineIdx];
-        const span = document.querySelector('#' + id + ' .tw-line') || document.getElementById(id);
-        if (!span) { lineIdx++; charIdx = 0; setTimeout(nextChar, LINE_PAUSE); return; }
+        const span = document.querySelector('#' + id + ' .tw-line');
+        if (!span) { cursor.remove(); lineIdx++; charIdx = 0; setTimeout(nextChar, LINE_PAUSE); return; }
 
-        if (charIdx === 0 && cursor) cursor.remove();
+        if (charIdx === 0) cursor.remove();
 
         if (charIdx < text.length) {
           span.textContent = text.slice(0, charIdx + 1);
-          cursor = document.createElement('span');
-          cursor.className = 'tw-cursor';
           span.appendChild(cursor);
           charIdx++;
           setTimeout(nextChar, CHAR_DELAY);
@@ -430,12 +431,12 @@
       }
 
       setTimeout(nextChar, 600);
-    })();
 
-    window.startFromStory = function() {
-      document.getElementById('story-screen').style.display = 'none';
-      gamePaused = false;
-    };
+      document.getElementById('story-btn').addEventListener('click', () => {
+        document.getElementById('story-screen').style.display = 'none';
+        gamePaused = false;
+      });
+    })();
 
     // ── Input ──────────────────────────────────────────────────────────────
     const raycaster   = new THREE.Raycaster();
