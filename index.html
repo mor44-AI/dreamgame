@@ -7,6 +7,60 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #111; overflow: hidden; }
     canvas { display: block; }
+
+    /* ── Story screen ───────────────────────────────────────────────── */
+    #story-screen {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      background: #0a0a0f;
+      font-family: monospace;
+    }
+    .story-content {
+      max-width: 600px; padding: 40px 32px; text-align: center; color: #ccc;
+    }
+    .story-content h1 {
+      font-size: 36px; color: #fff; letter-spacing: 4px; margin-bottom: 28px;
+      text-transform: uppercase;
+    }
+    .story-content .subtitle {
+      font-size: 12px; letter-spacing: 4px; color: #6bb8ff;
+      text-transform: uppercase; margin-bottom: 36px;
+      background: rgba(68,153,255,0.12); padding: 4px 12px; border-radius: 4px;
+      display: inline-block;
+    }
+    .story-content p {
+      font-size: 14px; line-height: 1.9; margin-bottom: 18px; color: #aaa;
+    }
+    .story-content p em { color: #ddd; font-style: normal; }
+    .story-content .phase-label {
+      margin: 32px 0 8px;
+      font-size: 11px; letter-spacing: 3px; color: #ff4444;
+      text-transform: uppercase;
+    }
+    .story-content .phase-title {
+      font-size: 20px; color: #fff; margin-bottom: 32px;
+    }
+    .story-content button {
+      padding: 12px 40px; font-size: 15px; letter-spacing: 2px;
+      border: 1px solid #4499ff; border-radius: 4px;
+      background: transparent; color: #4499ff; cursor: pointer;
+      text-transform: uppercase; font-family: monospace;
+      transition: background 0.2s, color 0.2s;
+    }
+    .story-content button:hover { background: #4499ff; color: #000; }
+
+    /* ── Typewriter ─────────────────────────────────────────────── */
+    .tw-line { color: #00ff41; display: block; min-height: 1.9em; }
+    .tw-cursor {
+      display: inline-block; width: 2px; height: 1em;
+      background: #00ff41; margin-left: 2px; vertical-align: text-bottom;
+      animation: blink 0.7s step-end infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    #story-btn { opacity: 0; transition: opacity 0.6s; pointer-events: none; }
+    #story-btn.ready { opacity: 1; pointer-events: auto; }
+
+    /* ── HUD ────────────────────────────────────────────────────────── */
     #hud {
       position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
       display: flex; gap: 24px; align-items: center;
@@ -19,34 +73,74 @@
     .fill { height: 100%; width: 0%; border-radius: 5px; transition: width 0.1s; }
     .fill.blue { background: #4499ff; }
     .fill.red  { background: #ff4444; }
+
+    /* ── Win / lose overlay ─────────────────────────────────────────── */
     #overlay {
       position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
-      flex-direction: column; gap: 16px; background: rgba(0,0,0,0.7);
-      font-family: monospace; color: #fff;
+      flex-direction: column; gap: 12px; background: rgba(0,0,0,0.75);
+      font-family: monospace; color: #fff; text-align: center; padding: 24px;
     }
     #overlay.show { display: flex; }
-    #overlay h1 { font-size: 48px; }
+    #overlay h1 { font-size: 44px; }
+    #overlay .next-label {
+      font-size: 11px; letter-spacing: 3px; color: #888; text-transform: uppercase;
+      margin-top: 8px;
+    }
+    #overlay .next-title { font-size: 18px; color: #aaa; margin-bottom: 8px; }
+    #overlay .coming-badge {
+      font-size: 11px; letter-spacing: 2px; color: #ff4444;
+      border: 1px solid #ff4444; border-radius: 4px;
+      padding: 3px 10px; text-transform: uppercase; margin-bottom: 20px;
+    }
     #overlay button {
       padding: 10px 28px; font-size: 16px; border: none; border-radius: 6px;
-      background: #4499ff; color: #fff; cursor: pointer;
+      background: #4499ff; color: #fff; cursor: pointer; font-family: monospace;
     }
   </style>
 </head>
 <body>
+  <!-- Story / intro screen -->
+  <div id="story-screen">
+    <div class="story-content">
+      <div class="subtitle">A true story</div>
+      <h1>The Dream</h1>
+
+      <p id="tw-p1"><span class="tw-line"></span></p>
+      <p id="tw-p2"><span class="tw-line"></span></p>
+      <p id="tw-p3"><span class="tw-line"></span></p>
+      <p id="tw-p4"><span class="tw-line"></span></p>
+      <p id="tw-p5"><span class="tw-line"></span></p>
+      <p id="tw-p6" style="font-size:12px; color:#666;"></p>
+
+      <div class="phase-label">Now Playing</div>
+      <div class="phase-title" id="story-phase-title">Phase 1</div>
+
+      <button id="story-btn" onclick="window.startFromStory()">Start</button>
+    </div>
+  </div>
+
+  <!-- HUD -->
   <div id="hud">
     <div class="bar-wrap">
       <span>BLUE</span>
       <div class="bar"><div id="blue-fill" class="fill blue"></div></div>
-      <span id="blue-count">3</span>
+      <span id="blue-score">0</span><span>/100</span>
     </div>
     <div class="bar-wrap">
       <span>RED</span>
       <div class="bar"><div id="red-fill" class="fill red"></div></div>
-      <span id="red-count">3</span>
+      <span id="red-score">0</span><span>/100</span>
     </div>
   </div>
+
+  <!-- Win / lose overlay -->
   <div id="overlay">
     <h1 id="overlay-title">YOU WIN</h1>
+    <div id="overlay-next" style="display:none">
+      <div class="next-label">Next Up</div>
+      <div class="next-title">Phase 2 / Medium</div>
+      <div class="coming-badge">Coming Soon</div>
+    </div>
     <button onclick="restartGame()">Play Again</button>
   </div>
 
@@ -283,8 +377,64 @@
     const redBullets  = [];
     let blueSpawnTimer = 0;
     let redSpawnTimer  = 0;
-    let gameOver = false;
-    let elapsed  = 0;
+    let gameOver   = false;
+    let gamePaused = true;   // paused until story dismissed
+    let elapsed    = 0;
+    let blueScore  = 0;
+    let redScore   = 0;
+    const WIN_SCORE = 100;
+
+    // ── Typewriter intro ───────────────────────────────────────────
+    (function runTypewriter() {
+      const lines = [
+        { id: 'tw-p1', text: 'One night I had a dream about a game.' },
+        { id: 'tw-p2', text: 'Blue vs Red. Two armies firing at each other across a glowing board. Every bullet that got through the enemy lines added a new soldier to your side. The side that took over the whole board would win.' },
+        { id: 'tw-p3', text: 'I woke up thinking it was a real game I had played before. It was not.' },
+        { id: 'tw-p4', text: 'So I went to Claude. No coding skills, no experience at all. I just described what I saw in the dream. We talked, I gave feedback, and bit by bit it became real.' },
+        { id: 'tw-p5', text: 'This is Phase 1. The game exactly as I dreamed it.' },
+        { id: 'tw-p6', text: 'Phase 2 is coming. Something bigger.' },
+      ];
+
+      const CHAR_DELAY = 28;
+      const LINE_PAUSE = 320;
+
+      let lineIdx = 0;
+      let charIdx = 0;
+      let cursor = null;
+
+      function nextChar() {
+        if (lineIdx >= lines.length) {
+          if (cursor) cursor.remove();
+          document.getElementById('story-btn').classList.add('ready');
+          return;
+        }
+
+        const { id, text } = lines[lineIdx];
+        const span = document.querySelector('#' + id + ' .tw-line') || document.getElementById(id);
+
+        if (charIdx === 0 && cursor) cursor.remove();
+
+        if (charIdx < text.length) {
+          span.textContent = text.slice(0, charIdx + 1);
+          cursor = document.createElement('span');
+          cursor.className = 'tw-cursor';
+          span.after(cursor);
+          charIdx++;
+          setTimeout(nextChar, CHAR_DELAY);
+        } else {
+          lineIdx++;
+          charIdx = 0;
+          setTimeout(nextChar, LINE_PAUSE);
+        }
+      }
+
+      setTimeout(nextChar, 600);
+    })();
+
+    window.startFromStory = function() {
+      document.getElementById('story-screen').style.display = 'none';
+      gamePaused = false;
+    };
 
     // ── Input ──────────────────────────────────────────────────────────────
     const raycaster   = new THREE.Raycaster();
@@ -484,15 +634,16 @@
     }
 
     function checkWin() {
-      const blueCov = calcCoverage(blueUnits);
-      const redCov  = calcCoverage(redUnits);
-      if (blueCov >= 1.0) triggerGameOver('YOU WIN 🎉');
-      if (redCov  >= 1.0) triggerGameOver('YOU LOSE 💀');
+      if (blueScore >= WIN_SCORE) triggerGameOver('YOU WIN 🎉');
+      if (redScore  >= WIN_SCORE) triggerGameOver('YOU LOSE 💀');
     }
 
     function triggerGameOver(message) {
       gameOver = true;
       document.getElementById('overlay-title').textContent = message;
+      // Show "next phase" teaser only on win
+      document.getElementById('overlay-next').style.display =
+        message.includes('WIN') ? 'block' : 'none';
       document.getElementById('overlay').classList.add('show');
     }
 
@@ -506,18 +657,16 @@
       blueUnits.length = 0; redUnits.length = 0;
       blueBullets.length = 0; redBullets.length = 0;
       blueSpawnTimer = 0; redSpawnTimer = 0;
-      elapsed = 0; gameOver = false;
+      elapsed = 0; gameOver = false; blueScore = 0; redScore = 0;
       document.getElementById('overlay').classList.remove('show');
       for (let i = 0; i < 3; i++) { spawnUnit('blue'); spawnUnit('red'); }
     };
 
     function updateHUD() {
-      const blueCov = calcCoverage(blueUnits);
-      const redCov  = calcCoverage(redUnits);
-      document.getElementById('blue-fill').style.width  = (blueCov * 100).toFixed(1) + '%';
-      document.getElementById('red-fill').style.width   = (redCov  * 100).toFixed(1) + '%';
-      document.getElementById('blue-count').textContent = blueUnits.length;
-      document.getElementById('red-count').textContent  = redUnits.length;
+      document.getElementById('blue-fill').style.width  = Math.min(blueScore, WIN_SCORE) + '%';
+      document.getElementById('red-fill').style.width   = Math.min(redScore,  WIN_SCORE) + '%';
+      document.getElementById('blue-score').textContent = blueScore;
+      document.getElementById('red-score').textContent  = redScore;
     }
 
     // ── Game Loop ──────────────────────────────────────────────────────────
@@ -525,7 +674,7 @@
 
     function gameLoop() {
       requestAnimationFrame(gameLoop);
-      if (gameOver) { renderer.render(scene, camera); return; }
+      if (gamePaused || gameOver) { renderer.render(scene, camera); return; }
 
       const now = performance.now();
       const dt  = Math.min((now - lastTime) / 1000, 0.05);
@@ -579,6 +728,7 @@
         if (b.alive && b.mesh.position.z > HALF_D) {
           b.destroy();
           spawnUnit('red');
+          redScore++;
         }
       }
 
@@ -598,6 +748,7 @@
         if (b.alive && b.mesh.position.z < -HALF_D) {
           b.destroy();
           spawnUnit('blue');
+          blueScore++;
         }
       }
 
