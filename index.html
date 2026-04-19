@@ -502,17 +502,22 @@
     // ── Level select ──────────────────────────────────────────────────────
     let currentLevel = 'easy';
 
-    // TODO: replaced in Task 3
-    function applyDifficulty(lvl) {}
+    let applyDifficulty = (lvl) => {}; // TODO: replaced in Task 3
+    let startPhase2 = () => {};        // TODO: replaced in Task 4
 
-    // TODO: replaced in Task 4
-    function startPhase2() {}
+    function getUnlocked() {
+      try {
+        return JSON.parse(localStorage.getItem('dg_unlocked') || '["easy"]');
+      } catch {
+        return ['easy'];
+      }
+    }
 
     function showLevelSelect() {
-      const unlocked = JSON.parse(localStorage.getItem('dg_unlocked') || '["easy"]');
+      const unlocked = getUnlocked();
       ['medium', 'hard', 'phase2'].forEach(lvl => {
-        document.getElementById('card-' + lvl)
-          .classList.toggle('locked', !unlocked.includes(lvl));
+        const el = document.getElementById('card-' + lvl);
+        if (el) el.classList.toggle('locked', !unlocked.includes(lvl));
       });
       const p2sub = document.getElementById('card-phase2-sub');
       p2sub.textContent = unlocked.includes('phase2') ? 'Hotline Miami' : 'Beat Hard first';
@@ -520,12 +525,15 @@
     }
 
     ['easy', 'medium', 'hard', 'phase2'].forEach(lvl => {
-      document.getElementById('card-' + lvl).addEventListener('click', () => {
-        const unlocked = JSON.parse(localStorage.getItem('dg_unlocked') || '["easy"]');
+      const card = document.getElementById('card-' + lvl);
+      if (!card) return;
+      card.addEventListener('click', () => {
+        const unlocked = getUnlocked();
         if (!unlocked.includes(lvl)) return;
         currentLevel = lvl;
         document.getElementById('level-select').classList.remove('show');
         if (lvl === 'phase2') {
+          gamePaused = false;
           startPhase2(); // defined in Task 4
         } else {
           applyDifficulty(lvl); // defined in Task 3
@@ -757,6 +765,7 @@
       blueSpawnTimer = 0; redSpawnTimer = 0;
       elapsed = 0; gameOver = false; blueScore = 0; redScore = 0;
       document.getElementById('overlay').classList.remove('show');
+      applyDifficulty(currentLevel);
       for (let i = 0; i < 3; i++) { spawnUnit('blue'); spawnUnit('red'); }
     };
 
