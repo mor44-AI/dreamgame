@@ -557,7 +557,7 @@
           gamePaused = false;
           startPhase2(); // defined in Task 4
         } else {
-          applyDifficulty(lvl); // defined in Task 3
+          restartGame();   // resets all state and calls applyDifficulty(currentLevel)
           gamePaused = false;
         }
       });
@@ -766,8 +766,8 @@
     }
 
     function checkWin() {
-      if (blueScore >= WIN_SCORE) triggerGameOver('YOU WIN 🎉');
-      if (redScore  >= WIN_SCORE) triggerGameOver('YOU LOSE 💀');
+      if      (blueScore >= WIN_SCORE) triggerGameOver('YOU WIN 🎉');
+      else if (redScore  >= WIN_SCORE) triggerGameOver('YOU LOSE 💀');
     }
 
     function triggerGameOver(message) {
