@@ -110,7 +110,7 @@
       <p id="tw-p3"><span class="tw-line"></span></p>
       <p id="tw-p4"><span class="tw-line"></span></p>
       <p id="tw-p5"><span class="tw-line"></span></p>
-      <p id="tw-p6" style="font-size:12px; color:#666;"></p>
+      <p id="tw-p6" style="font-size:12px; color:#666;"><span class="tw-line"></span></p>
 
       <div class="phase-label">Now Playing</div>
       <div class="phase-title" id="story-phase-title">Phase 1</div>
@@ -411,6 +411,7 @@
 
         const { id, text } = lines[lineIdx];
         const span = document.querySelector('#' + id + ' .tw-line') || document.getElementById(id);
+        if (!span) { lineIdx++; charIdx = 0; setTimeout(nextChar, LINE_PAUSE); return; }
 
         if (charIdx === 0 && cursor) cursor.remove();
 
@@ -418,7 +419,7 @@
           span.textContent = text.slice(0, charIdx + 1);
           cursor = document.createElement('span');
           cursor.className = 'tw-cursor';
-          span.after(cursor);
+          span.appendChild(cursor);
           charIdx++;
           setTimeout(nextChar, CHAR_DELAY);
         } else {
