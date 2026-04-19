@@ -65,22 +65,17 @@
       cursor:pointer; font-family:monospace; padding:6px 16px; border-radius:4px;
     }
 
-    /* ── Phase 2 / Miami ───────────────────────────────────────────── */
+    /* ── Phase 2 / Rio ─────────────────────────────────────────────── */
     #p2-canvas-wrap { position: fixed; inset: 0; z-index: 1; display: none; }
     #p2-canvas-wrap.show { display: block; }
     #p2-hud {
-      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
-      display: none; gap: 24px; align-items: center;
-      font-family: monospace; color: #ff2d78; font-size: 13px;
-      background: rgba(13,0,21,0.8); padding: 8px 16px; border-radius: 0;
-      border: 1px solid #ff2d78; pointer-events: none; letter-spacing: 2px;
-      z-index: 2;
+      position: fixed; top: 0; left: 0; right: 0; z-index: 2;
+      display: none; justify-content: space-between; align-items: center;
+      font-family: monospace; font-size: 11px; letter-spacing: 3px;
+      color: #444; padding: 6px 14px; pointer-events: none;
+      text-transform: uppercase;
     }
     #p2-hud.show { display: flex; }
-    .p2-bar { width: 120px; height: 8px; background: #200030; }
-    .p2-fill { height: 100%; width: 0%; }
-    .p2-fill.blue { background: #00fff0; }
-    .p2-fill.pink { background: #ff2d78; }
 
     /* ── Level Select ───────────────────────────────────────────────── */
     #level-select {
@@ -196,8 +191,8 @@
       </div>
       <div class="level-card phase2 locked" id="card-phase2">
         <div class="card-phase">Phase 2</div>
-        <div class="card-name">Miami</div>
-        <div class="card-sub" id="card-phase2-sub">Hotline Miami</div>
+        <div class="card-name">Rio</div>
+        <div class="card-sub" id="card-phase2-sub">The maze</div>
       </div>
     </div>
   </div>
@@ -205,19 +200,10 @@
   <!-- Phase 2 canvas (hidden until activated) -->
   <div id="p2-canvas-wrap"></div>
 
-  <!-- Phase 2 HUD -->
+  <!-- Phase 2 / Rio HUD -->
   <div id="p2-hud">
-    <div class="bar-wrap">
-      <span>YOU</span>
-      <div class="p2-bar"><div id="p2-blue-fill" class="p2-fill blue"></div></div>
-      <span id="p2-blue-score">0</span><span>/150</span>
-    </div>
-    <div class="bar-wrap">
-      <span>THEM</span>
-      <div class="p2-bar"><div id="p2-red-fill" class="p2-fill pink"></div></div>
-      <span id="p2-red-score">0</span><span>/150</span>
-    </div>
-    <span style="font-size:10px;color:#ff2d78;letter-spacing:3px;">MIAMI</span>
+    <span>RIO</span>
+    <span>find the exit</span>
   </div>
 
   <!-- HUD -->
@@ -241,9 +227,9 @@
     <div id="overlay-next" style="display:none">
       <div class="next-label">Unlocked</div>
       <div class="next-title" id="overlay-next-title">Phase 1 / Medium</div>
-      <button class="btn-secondary" id="choose-level-btn">Choose Level</button>
     </div>
-    <button onclick="restartGame()">Play Again</button>
+    <button class="btn-secondary" id="choose-level-btn" style="display:none">Choose Level</button>
+    <button id="overlay-play-again-btn" onclick="window.overlayRestart()">Play Again</button>
   </div>
 
   <script type="importmap">
@@ -268,6 +254,7 @@
       hard:   { bulletSpeed: 13.0, spawnInterval: 0.11, aiSpeedStart: 10.0, aiSpeedEnd: 18.0, aiRampSeconds: 40, winScore: 100 },
     };
 
+    window.overlayRestart = function() { restartGame(); };
     let BULLET_SPEED    = 6.0;
     let SPAWN_INTERVAL  = 0.22;
     let RED_BASE_SPEED  = 3.5;
@@ -879,7 +866,7 @@
         if (el) el.classList.toggle('locked', !unlocked.includes(lvl));
       });
       const p2sub = document.getElementById('card-phase2-sub');
-      p2sub.textContent = 'Hotline Miami';
+      p2sub.textContent = 'The maze';
       document.getElementById('level-select').classList.add('show');
     }
 
@@ -903,6 +890,7 @@
 
     document.getElementById('choose-level-btn').addEventListener('click', () => {
       document.getElementById('overlay').classList.remove('show');
+      document.getElementById('choose-level-btn').style.display = 'none';
       showLevelSelect();
     });
 
@@ -1128,12 +1116,14 @@
       const nextTitle = document.getElementById('overlay-next-title');
       if (won && next && nextDiv && nextTitle) {
         nextDiv.style.display = 'block';
-        const labels = { medium: 'Phase 1 / Medium', hard: 'Phase 1 / Hard', phase2: 'Phase 2 / Miami' };
+        const labels = { medium: 'Phase 1 / Medium', hard: 'Phase 1 / Hard', phase2: 'Phase 2 / Rio' };
         nextTitle.textContent = labels[next];
       } else if (nextDiv) {
         nextDiv.style.display = 'none';
       }
 
+      document.getElementById('overlay-play-again-btn').style.display = 'block';
+      document.getElementById('choose-level-btn').style.display = won ? 'block' : 'none';
       document.getElementById('overlay').classList.add('show');
     }
 
