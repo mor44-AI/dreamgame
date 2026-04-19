@@ -192,15 +192,17 @@
       <div class="bar"><div id="red-fill" class="fill red"></div></div>
       <span id="red-score">0</span><span>/100</span>
     </div>
+    <span id="hud-level" style="font-size:11px;letter-spacing:2px;color:#888;text-transform:uppercase;">EASY</span>
   </div>
 
   <!-- Win / lose overlay -->
   <div id="overlay">
     <h1 id="overlay-title">YOU WIN</h1>
     <div id="overlay-next" style="display:none">
-      <div class="next-label">Next Up</div>
-      <div class="next-title">Phase 2 / Medium</div>
-      <div class="coming-badge">Coming Soon</div>
+      <div class="next-label">Unlocked</div>
+      <div class="next-title" id="overlay-next-title">Phase 1 / Medium</div>
+      <button style="margin-top:8px;background:#222;border:1px solid #555;color:#fff;cursor:pointer;font-family:monospace;padding:6px 16px;border-radius:4px;"
+              id="choose-level-btn">Choose Level</button>
     </div>
     <button onclick="restartGame()">Play Again</button>
   </div>
@@ -221,9 +223,17 @@
     const REPULSION_K     = 3.0;
     const SPRING_K        = 14.0;
     const DAMPING         = 3.0;
-    const BULLET_SPEED    = 6.0;
-    const SPAWN_INTERVAL  = 0.22;
-    const RED_BASE_SPEED  = 3.5;
+    const DIFFICULTY_CONFIGS = {
+      easy:   { bulletSpeed: 6.0,  spawnInterval: 0.22, aiSpeedStart: 3.5,  aiSpeedEnd: 6.0,  aiRampSeconds: 90, winScore: 100 },
+      medium: { bulletSpeed: 9.0,  spawnInterval: 0.16, aiSpeedStart: 6.0,  aiSpeedEnd: 11.0, aiRampSeconds: 60, winScore: 100 },
+      hard:   { bulletSpeed: 13.0, spawnInterval: 0.11, aiSpeedStart: 10.0, aiSpeedEnd: 18.0, aiRampSeconds: 40, winScore: 100 },
+    };
+
+    let BULLET_SPEED    = 6.0;
+    let SPAWN_INTERVAL  = 0.22;
+    let RED_BASE_SPEED  = 3.5;
+    let RED_END_SPEED   = 6.0;
+    let AI_RAMP_SECS    = 90;
     const BLUE_COLOR      = 0x2255cc;
     const RED_COLOR       = 0xcc2222;
     const BULLET_BLUE_COLOR = 0x4499ff;
@@ -443,7 +453,7 @@
     let elapsed    = 0;
     let blueScore  = 0;
     let redScore   = 0;
-    const WIN_SCORE = 100;
+    let WIN_SCORE = 100;
 
     // ── Typewriter intro ───────────────────────────────────────────
     (function runTypewriter() {
@@ -502,7 +512,18 @@
     // ── Level select ──────────────────────────────────────────────────────
     let currentLevel = 'easy';
 
-    let applyDifficulty = (lvl) => {}; // TODO: replaced in Task 3
+    let applyDifficulty = (lvl) => {};
+    applyDifficulty = (lvl) => {
+      const cfg = DIFFICULTY_CONFIGS[lvl] || DIFFICULTY_CONFIGS.easy;
+      BULLET_SPEED   = cfg.bulletSpeed;
+      SPAWN_INTERVAL = cfg.spawnInterval;
+      RED_BASE_SPEED = cfg.aiSpeedStart;
+      RED_END_SPEED  = cfg.aiSpeedEnd;
+      AI_RAMP_SECS   = cfg.aiRampSeconds;
+      WIN_SCORE      = cfg.winScore;
+      const badge = document.getElementById('hud-level');
+      if (badge) badge.textContent = lvl.toUpperCase();
+    };
     let startPhase2 = () => {};        // TODO: replaced in Task 4
 
     function getUnlocked() {
@@ -540,6 +561,11 @@
           gamePaused = false;
         }
       });
+    });
+
+    document.getElementById('choose-level-btn').addEventListener('click', () => {
+      document.getElementById('overlay').classList.remove('show');
+      showLevelSelect();
     });
 
     // ── Input ──────────────────────────────────────────────────────────────
@@ -634,8 +660,8 @@
         const targetX = weightedX / totalWeight;
 
         // Cursor moves at a capped speed (slower early, faster late — but always beatable)
-        const difficulty = Math.min(elapsed / 90, 1);
-        const cursorSpeed = (3.5 + difficulty * 2.5) * dt;
+        const difficulty = Math.min(elapsed / AI_RAMP_SECS, 1);
+        const cursorSpeed = (RED_BASE_SPEED + difficulty * (RED_END_SPEED - RED_BASE_SPEED)) * dt;
         const dx = targetX - redCursorX;
         redCursorX += Math.sign(dx) * Math.min(Math.abs(dx), cursorSpeed);
         redCursorX = Math.max(-BOARD_W / 2 + 0.5, Math.min(BOARD_W / 2 - 0.5, redCursorX));
@@ -747,9 +773,29 @@
     function triggerGameOver(message) {
       gameOver = true;
       document.getElementById('overlay-title').textContent = message;
-      // Show "next phase" teaser only on win
-      document.getElementById('overlay-next').style.display =
-        message.includes('WIN') ? 'block' : 'none';
+
+      const won = message.includes('WIN');
+      const nextMap = { easy: 'medium', medium: 'hard', hard: 'phase2' };
+      const next = nextMap[currentLevel];
+
+      if (won && next) {
+        const unlocked = getUnlocked();
+        if (!unlocked.includes(next)) {
+          unlocked.push(next);
+          localStorage.setItem('dg_unlocked', JSON.stringify(unlocked));
+        }
+      }
+
+      const nextDiv   = document.getElementById('overlay-next');
+      const nextTitle = document.getElementById('overlay-next-title');
+      if (won && next && nextDiv && nextTitle) {
+        nextDiv.style.display = 'block';
+        const labels = { medium: 'Phase 1 / Medium', hard: 'Phase 1 / Hard', phase2: 'Phase 2 / Miami' };
+        nextTitle.textContent = labels[next];
+      } else if (nextDiv) {
+        nextDiv.style.display = 'none';
+      }
+
       document.getElementById('overlay').classList.add('show');
     }
 
