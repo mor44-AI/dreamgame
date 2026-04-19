@@ -775,6 +775,7 @@
       window.addEventListener('resize', () => {
         const a = window.innerWidth / window.innerHeight;
         p2camera.left = -p2d * a; p2camera.right = p2d * a;
+        p2camera.top = p2d; p2camera.bottom = -p2d;
         p2camera.updateProjectionMatrix();
         p2renderer.setSize(window.innerWidth, window.innerHeight);
         p2renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
