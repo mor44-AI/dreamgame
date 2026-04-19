@@ -74,6 +74,7 @@
       font-family: monospace; color: #ff2d78; font-size: 13px;
       background: rgba(13,0,21,0.8); padding: 8px 16px; border-radius: 0;
       border: 1px solid #ff2d78; pointer-events: none; letter-spacing: 2px;
+      z-index: 2;
     }
     #p2-hud.show { display: flex; }
     .p2-bar { width: 120px; height: 8px; background: #200030; }
@@ -563,7 +564,6 @@
     };
     // ── Phase 2 — Hotline Miami ────────────────────────────────────────────────
     function startPhase2() {
-      // Show Phase 2 canvas, hide Phase 1 canvas
       renderer.domElement.style.display = 'none';
       document.getElementById('hud').style.display = 'none';
       document.getElementById('p2-hud').classList.add('show');
@@ -800,8 +800,8 @@
           if (!b.alive) continue;
           b.mesh.position.x += b.vx * dt;
           b.mesh.position.z += b.vz * dt;
-          if (b.mesh.position.x < -P2_W/2) b.mesh.position.x = -P2_W/2;
-          if (b.mesh.position.x >  P2_W/2) b.mesh.position.x =  P2_W/2;
+          if (b.mesh.position.x < -P2_W/2) { b.mesh.position.x = -P2_W/2; b.vx = Math.abs(b.vx); }
+          if (b.mesh.position.x >  P2_W/2) { b.mesh.position.x =  P2_W/2; b.vx = -Math.abs(b.vx); }
         }
 
         for (const b of p2BlueBullets) { if (b.alive && b.mesh.position.z < -P2_HALF-1) b.destroy(); }
@@ -859,8 +859,8 @@
           }
         }
 
-        if (p2BlueScore >= P2_WIN) p2TriggerGameOver('YOU WIN 🎉');
-        if (p2RedScore  >= P2_WIN) p2TriggerGameOver('YOU LOSE 💀');
+        if      (p2BlueScore >= P2_WIN) p2TriggerGameOver('YOU WIN 🎉');
+        else if (p2RedScore  >= P2_WIN) p2TriggerGameOver('YOU LOSE 💀');
 
         p2UpdateHUD();
 
@@ -905,7 +905,7 @@
         document.getElementById('level-select').classList.remove('show');
         if (lvl === 'phase2') {
           gamePaused = false;
-          startPhase2(); // defined in Task 4
+          startPhase2();
         } else {
           restartGame();   // resets all state and calls applyDifficulty(currentLevel)
           gamePaused = false;
