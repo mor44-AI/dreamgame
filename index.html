@@ -197,7 +197,7 @@
       <div class="level-card phase2 locked" id="card-phase2">
         <div class="card-phase">Phase 2</div>
         <div class="card-name">Miami</div>
-        <div class="card-sub" id="card-phase2-sub">Beat Hard first</div>
+        <div class="card-sub" id="card-phase2-sub">Hotline Miami</div>
       </div>
     </div>
   </div>
@@ -866,9 +866,9 @@
 
     function getUnlocked() {
       try {
-        return JSON.parse(localStorage.getItem('dg_unlocked') || '["easy"]');
+        return JSON.parse(localStorage.getItem('dg_unlocked') || '["easy","medium","hard","phase2"]');
       } catch {
-        return ['easy'];
+        return ['easy', 'medium', 'hard', 'phase2'];
       }
     }
 
@@ -879,7 +879,7 @@
         if (el) el.classList.toggle('locked', !unlocked.includes(lvl));
       });
       const p2sub = document.getElementById('card-phase2-sub');
-      p2sub.textContent = unlocked.includes('phase2') ? 'Hotline Miami' : 'Beat Hard first';
+      p2sub.textContent = 'Hotline Miami';
       document.getElementById('level-select').classList.add('show');
     }
 
