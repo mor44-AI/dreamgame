@@ -57,8 +57,7 @@
       animation: blink 0.7s step-end infinite;
     }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-    #story-btn { opacity: 0; transition: opacity 0.6s; pointer-events: none; }
-    #story-btn.ready { opacity: 1; pointer-events: auto; }
+    #story-btn { opacity: 1; pointer-events: auto; }
     .hud-badge { font-size:11px; letter-spacing:2px; color:#888; text-transform:uppercase; }
     .btn-secondary {
       margin-top:8px; background:#222; border:1px solid #555; color:#fff;
@@ -110,6 +109,17 @@
     .level-card.medium:hover:not(.locked) { border-color: #ffaa44; background: rgba(255,170,68,0.06); }
     .level-card.hard:hover:not(.locked)   { border-color: #ff4444; background: rgba(255,68,68,0.06); }
     .level-card.phase2:hover:not(.locked) { border-color: #ff2d78; background: rgba(255,45,120,0.06); }
+    /* ── Card tooltips ──────────────────────────────────────────────── */
+    .level-card { position: relative; }
+    .level-card .card-tip {
+      display: none; position: absolute; bottom: calc(100% + 10px); left: 50%;
+      transform: translateX(-50%); width: 180px;
+      background: rgba(10,10,20,0.96); border: 1px solid #333; border-radius: 4px;
+      padding: 8px 10px; font-size: 10px; color: #999; line-height: 1.7;
+      letter-spacing: 0.5px; pointer-events: none; z-index: 200;
+      white-space: pre-line; text-align: left;
+    }
+    .level-card:hover:not(.locked) .card-tip { display: block; }
 
     /* ── HUD ────────────────────────────────────────────────────────── */
     #hud {
@@ -178,11 +188,13 @@
         <div class="card-phase">Phase 1</div>
         <div class="card-name">Dream</div>
         <div class="card-sub">No mercy</div>
+        <div class="card-tip">WASD — move&#10;Mouse — aim&#10;Click — shoot&#10;&#10;Push blue units past the red line. Reach 100 to win.</div>
       </div>
       <div class="level-card phase2 locked" id="card-phase2">
         <div class="card-phase">Phase 2</div>
         <div class="card-name">Rio</div>
         <div class="card-sub" id="card-phase2-sub">The maze</div>
+        <div class="card-tip">WASD — move&#10;Mouse — aim&#10;Click — shoot&#10;&#10;Navigate the maze. Find the ✦ exit. One hit kills.</div>
       </div>
     </div>
   </div>
@@ -975,11 +987,19 @@
 
       function p2TriggerGameOver(won) {
         p2Over = true;
+        p2abort.abort();
         document.getElementById('overlay-title').textContent = won ? 'YOU WON 🎉' : 'GAME OVER 💀';
-        document.getElementById('overlay-play-again-btn').style.display = won ? 'none' : 'block';
-        document.getElementById('choose-level-btn').style.display = 'block';
+        document.getElementById('overlay-play-again-btn').style.display = 'none';
+        document.getElementById('choose-level-btn').style.display = 'none';
         document.getElementById('overlay-next').style.display = 'none';
         document.getElementById('overlay').classList.add('show');
+        // After 2 s, go back to level select
+        setTimeout(() => {
+          document.getElementById('overlay').classList.remove('show');
+          document.getElementById('p2-canvas-wrap').classList.remove('show');
+          document.getElementById('p2-hud').classList.remove('show');
+          showLevelSelect();
+        }, 2000);
       }
 
       function p2CheckWin() {
