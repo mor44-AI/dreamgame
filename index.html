@@ -174,19 +174,9 @@
   <div id="level-select">
     <h2>Select Level</h2>
     <div class="level-cards">
-      <div class="level-card easy" id="card-easy">
+      <div class="level-card hard" id="card-hard">
         <div class="card-phase">Phase 1</div>
-        <div class="card-name">Easy</div>
-        <div class="card-sub">The Dream</div>
-      </div>
-      <div class="level-card medium locked" id="card-medium">
-        <div class="card-phase">Phase 1</div>
-        <div class="card-name">Medium</div>
-        <div class="card-sub">Faster</div>
-      </div>
-      <div class="level-card hard locked" id="card-hard">
-        <div class="card-phase">Phase 1</div>
-        <div class="card-name">Hard</div>
+        <div class="card-name">Dream</div>
         <div class="card-sub">No mercy</div>
       </div>
       <div class="level-card phase2 locked" id="card-phase2">
@@ -218,7 +208,7 @@
       <div class="bar"><div id="red-fill" class="fill red"></div></div>
       <span id="red-score">0</span><span>/100</span>
     </div>
-    <span id="hud-level" class="hud-badge">EASY</span>
+    <span id="hud-level" class="hud-badge">DREAM</span>
   </div>
 
   <!-- Win / lose overlay -->
@@ -536,10 +526,10 @@
     })();
 
     // ── Level select ──────────────────────────────────────────────────────
-    let currentLevel = 'easy';
+    let currentLevel = 'hard';
 
     const applyDifficulty = (lvl) => {
-      const cfg = DIFFICULTY_CONFIGS[lvl] || DIFFICULTY_CONFIGS.easy;
+      const cfg = DIFFICULTY_CONFIGS[lvl] || DIFFICULTY_CONFIGS.hard;
       BULLET_SPEED   = cfg.bulletSpeed;
       SPAWN_INTERVAL = cfg.spawnInterval;
       RED_BASE_SPEED = cfg.aiSpeedStart;
@@ -547,10 +537,16 @@
       AI_RAMP_SECS   = cfg.aiRampSeconds;
       WIN_SCORE      = cfg.winScore;
       const badge = document.getElementById('hud-level');
-      if (badge) badge.textContent = lvl.toUpperCase();
+      if (badge) badge.textContent = lvl === 'hard' ? 'DREAM' : lvl.toUpperCase();
     };
     // ── Phase 2 — Rio ─────────────────────────────────────────────────────────
     function startPhase2() {
+      // ── Cancel any previous Rio session (removes old event listeners & stops old loop) ──
+      if (window._p2abort) window._p2abort.abort();
+      const p2abort = new AbortController();
+      window._p2abort = p2abort;
+      const sig = p2abort.signal;
+
       // ── Show Rio canvas, hide Phase 1 ──
       window.overlayRestart = startPhase2;
       renderer.domElement.style.display = 'none';
@@ -579,7 +575,7 @@
         p2oy = (window.innerHeight - CH * p2scale) / 2;
       }
       p2Resize();
-      window.addEventListener('resize', p2Resize);
+      window.addEventListener('resize', p2Resize, { signal: sig });
 
       // Convert browser clientX/Y → canvas logical coords
       function toLogical(cx, cy) {
@@ -769,13 +765,13 @@
 
       // ── Input ──
       const keys = {};
-      window.addEventListener('keydown', e => { keys[e.code] = true;  });
-      window.addEventListener('keyup',   e => { keys[e.code] = false; });
+      window.addEventListener('keydown', e => { keys[e.code] = true;  }, { signal: sig });
+      window.addEventListener('keyup',   e => { keys[e.code] = false; }, { signal: sig });
 
       let mouseLogical = { x: player.x, y: player.y };
       window.addEventListener('mousemove', e => {
         mouseLogical = toLogical(e.clientX, e.clientY);
-      });
+      }, { signal: sig });
 
       // ── Bullets ──
       const P2_BULLET_SPEED = 400;
@@ -792,7 +788,7 @@
           vy: Math.sin(player.angle) * P2_BULLET_SPEED,
           dist: 0,
         });
-      });
+      }, { signal: sig });
 
       function updateBullets(arr, dt) {
         for (let i = arr.length - 1; i >= 0; i--) {
@@ -843,7 +839,7 @@
           angle: def.patrolAxis === 'H' ? 0 : Math.PI/2,
           patrolAxis: def.patrolAxis,
           patrolDir: 1,
-          patrolSpeed: 40,
+          patrolSpeed: 70,
           room: def.room,
           state: 'patrol',
           lostTimer: 0,
@@ -869,7 +865,7 @@
         let diff = angleToPlayer - e.angle;
         while (diff >  Math.PI) diff -= Math.PI*2;
         while (diff < -Math.PI) diff += Math.PI*2;
-        if (Math.abs(diff) > Math.PI*15/180) return false;
+        if (Math.abs(diff) > Math.PI*22.5/180) return false;
         return hasLOS(e.x, e.y, player.x, player.y);
       }
 
@@ -897,8 +893,8 @@
             if (sees) { e.state = 'alert'; e.lostTimer = 0; }
 
           } else {
-            e.angle = Math.atan2(player.y - e.y, player.x - e.x);
             if (sees) {
+              e.angle = Math.atan2(player.y - e.y, player.x - e.x);
               e.lostTimer = 0;
               e.shootTimer += dt;
               if (e.shootTimer >= 1.0) {
@@ -924,7 +920,7 @@
           if (!e.alive) continue;
           if (!visitedRooms.has(e.room)) continue;
 
-          const fovR = 150, half = Math.PI*15/180;
+          const fovR = 150, half = Math.PI*22.5/180;
           ctx.beginPath();
           ctx.moveTo(e.x, e.y);
           ctx.arc(e.x, e.y, fovR, e.angle-half, e.angle+half);
@@ -1037,7 +1033,7 @@
       let p2Last = performance.now();
 
       function p2Loop() {
-        if (!wrap.classList.contains('show')) return;
+        if (sig.aborted) return;
         requestAnimationFrame(p2Loop);
         if (p2Over) {
           p2ctx.setTransform(p2scale, 0, 0, p2scale, p2ox, p2oy);
@@ -1114,15 +1110,15 @@
 
     function getUnlocked() {
       try {
-        return JSON.parse(localStorage.getItem('dg_unlocked') || '["easy","medium","hard","phase2"]');
+        return JSON.parse(localStorage.getItem('dg_unlocked') || '["hard","phase2"]');
       } catch {
-        return ['easy', 'medium', 'hard', 'phase2'];
+        return ['hard', 'phase2'];
       }
     }
 
     function showLevelSelect() {
       const unlocked = getUnlocked();
-      ['medium', 'hard', 'phase2'].forEach(lvl => {
+      ['hard', 'phase2'].forEach(lvl => {
         const el = document.getElementById('card-' + lvl);
         if (el) el.classList.toggle('locked', !unlocked.includes(lvl));
       });
@@ -1131,7 +1127,7 @@
       document.getElementById('level-select').classList.add('show');
     }
 
-    ['easy', 'medium', 'hard', 'phase2'].forEach(lvl => {
+    ['hard', 'phase2'].forEach(lvl => {
       const card = document.getElementById('card-' + lvl);
       if (!card) return;
       card.addEventListener('click', () => {
@@ -1152,6 +1148,10 @@
     document.getElementById('choose-level-btn').addEventListener('click', () => {
       document.getElementById('overlay').classList.remove('show');
       document.getElementById('choose-level-btn').style.display = 'none';
+      // Clean up Rio if active
+      document.getElementById('p2-canvas-wrap').classList.remove('show');
+      document.getElementById('p2-hud').classList.remove('show');
+      if (window._p2abort) { window._p2abort.abort(); window._p2abort = null; }
       showLevelSelect();
     });
 
@@ -1362,7 +1362,7 @@
       document.getElementById('overlay-title').textContent = message;
 
       const won = message.includes('WIN');
-      const nextMap = { easy: 'medium', medium: 'hard', hard: 'phase2' };
+      const nextMap = { hard: 'phase2' };
       const next = nextMap[currentLevel];
 
       if (won && next) {
@@ -1377,7 +1377,7 @@
       const nextTitle = document.getElementById('overlay-next-title');
       if (won && next && nextDiv && nextTitle) {
         nextDiv.style.display = 'block';
-        const labels = { medium: 'Phase 1 / Medium', hard: 'Phase 1 / Hard', phase2: 'Phase 2 / Rio' };
+        const labels = { phase2: 'Phase 2 / Rio' };
         nextTitle.textContent = labels[next];
       } else if (nextDiv) {
         nextDiv.style.display = 'none';
