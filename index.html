@@ -491,7 +491,7 @@
         { id: 'tw-p3', text: 'I woke up thinking it was a real game I had played before. It was not.' },
         { id: 'tw-p4', text: 'So I went to Claude. No coding skills, no experience at all. I just described what I saw in the dream. We talked, I gave feedback, and bit by bit it became real.' },
         { id: 'tw-p5', text: 'This is Phase 1. The game exactly as I dreamed it.' },
-        { id: 'tw-p6', text: 'Phase 2 is coming. Something bigger.' },
+        { id: 'tw-p6', text: '' },
       ];
 
       const CHAR_DELAY = 28;
@@ -830,29 +830,18 @@
       }
 
       // ── Enemies ──
-      const ENEMY_DEFS = [
-        {room:0,  rx:0.7, ry:0.5, patrolAxis:'H'},
-        {room:5,  rx:0.5, ry:0.5, patrolAxis:'H'},
-        {room:6,  rx:0.5, ry:0.5, patrolAxis:'V'},
-        {room:7,  rx:0.5, ry:0.5, patrolAxis:'H'},
-        {room:10, rx:0.5, ry:0.5, patrolAxis:'H'},
-        {room:12, rx:0.5, ry:0.5, patrolAxis:'V'},
-        {room:13, rx:0.5, ry:0.5, patrolAxis:'H'},
-        {room:15, rx:0.5, ry:0.5, patrolAxis:'H'},
-        {room:17, rx:0.5, ry:0.5, patrolAxis:'V'},
-        {room:18, rx:0.5, ry:0.5, patrolAxis:'H'},
-      ];
+      const ENEMY_ROOMS = [0, 5, 6, 7, 10, 12, 13, 15, 17, 18];
 
-      const enemies = ENEMY_DEFS.map(def => {
-        const r = ROOMS[def.room];
+      const enemies = ENEMY_ROOMS.map(roomId => {
+        const r = ROOMS[roomId];
+        const a = Math.random() * Math.PI * 2;  // random initial direction
         return {
-          x: r.x + def.rx * r.w,
-          y: r.y + def.ry * r.h,
-          angle: def.patrolAxis === 'H' ? 0 : Math.PI/2,
-          patrolAxis: def.patrolAxis,
-          patrolDir: 1,
-          patrolSpeed: 70,
-          room: def.room,
+          x: r.x + r.w * 0.5,
+          y: r.y + r.h * 0.5,
+          angle: a,
+          vx: Math.cos(a) * 70,
+          vy: Math.sin(a) * 70,
+          room: roomId,
           state: 'patrol',
           lostTimer: 0,
           shootTimer: 0,
@@ -891,17 +880,14 @@
           if (e.state === 'patrol') {
             const r = ROOMS[e.room];
             const margin = 8;
-            if (e.patrolAxis === 'H') {
-              e.x += e.patrolDir * e.patrolSpeed * dt;
-              e.angle = e.patrolDir > 0 ? 0 : Math.PI;
-              if (e.x > r.x + r.w - margin) { e.x = r.x + r.w - margin; e.patrolDir = -1; }
-              if (e.x < r.x + margin)        { e.x = r.x + margin;        e.patrolDir =  1; }
-            } else {
-              e.y += e.patrolDir * e.patrolSpeed * dt;
-              e.angle = e.patrolDir > 0 ? Math.PI/2 : -Math.PI/2;
-              if (e.y > r.y + r.h - margin) { e.y = r.y + r.h - margin; e.patrolDir = -1; }
-              if (e.y < r.y + margin)        { e.y = r.y + margin;        e.patrolDir =  1; }
-            }
+            e.x += e.vx * dt;
+            e.y += e.vy * dt;
+            // Bounce off room walls
+            if (e.x > r.x + r.w - margin) { e.x = r.x + r.w - margin; e.vx = -Math.abs(e.vx); }
+            if (e.x < r.x + margin)        { e.x = r.x + margin;        e.vx =  Math.abs(e.vx); }
+            if (e.y > r.y + r.h - margin) { e.y = r.y + r.h - margin; e.vy = -Math.abs(e.vy); }
+            if (e.y < r.y + margin)        { e.y = r.y + margin;        e.vy =  Math.abs(e.vy); }
+            e.angle = Math.atan2(e.vy, e.vx);
             if (sees) { e.state = 'alert'; e.lostTimer = 0; }
 
           } else {
@@ -988,7 +974,7 @@
       function p2TriggerGameOver(won) {
         p2Over = true;
         p2abort.abort();
-        document.getElementById('overlay-title').textContent = won ? 'YOU WON 🎉' : 'GAME OVER 💀';
+        document.getElementById('overlay-title').textContent = won ? 'WON' : 'BUSTED';
         document.getElementById('overlay-play-again-btn').style.display = 'none';
         document.getElementById('choose-level-btn').style.display = 'none';
         document.getElementById('overlay-next').style.display = 'none';
